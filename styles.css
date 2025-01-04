@@ -1,0 +1,17 @@
+body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: Arial, sans-serif;
+  }
+  
+  canvas {
+    border: 1px solid black;
+    margin-top: 10px;
+  }
+  
+  #ui {
+    margin-top: 10px;
+    text-align: center;
+  }
+  

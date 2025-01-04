@@ -4,17 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Settlement Simulation</title>
-  <style>
-    canvas {
-      border: 1px solid black;
-      display: block;
-      margin: 0 auto;
-    }
-    #ui {
-      text-align: center;
-      margin-top: 10px;
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <canvas id="gameCanvas" width="500" height="500"></canvas>
@@ -22,6 +12,9 @@
     <button id="gatherWood">Gather Wood</button>
     <p>Wood: <span id="woodCount">0</span></p>
   </div>
-  <script src="main.js"></script>
+  <script src="scripts/map.js" type="module"></script>
+  <script src="scripts/resources.js" type="module"></script>
+  <script src="scripts/workers.js" type="module"></script>
+  <script src="main.js" type="module"></script>
 </body>
 </html>
