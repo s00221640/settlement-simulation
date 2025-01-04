@@ -5,6 +5,10 @@ export function addWorker(x, y) {
 }
 
 export function drawWorkers(ctx) {
+  if (!ctx) {
+    console.error("Context (ctx) is not defined in drawWorkers");
+    return;
+  }
   workers.forEach(worker => {
     ctx.fillStyle = "blue";
     ctx.beginPath();
@@ -32,21 +36,22 @@ export function assignTask(worker, task, map, onComplete) {
   }, 1000); // Simulated delay of 1 second
 }
 
-export function moveWorkerToTile(worker, targetX, targetY, onArrive) {
+export function moveWorkerToTile(worker, targetX, targetY, ctx, onArrive) {
   console.log(`Moving worker from (${worker.x}, ${worker.y}) to (${targetX}, ${targetY})`);
 
-  // Simulate worker movement (tile by tile)
+  const movementInterval = 500; // Adjust the interval for smoother movement (in ms)
   const interval = setInterval(() => {
     if (worker.x < targetX) worker.x++;
     else if (worker.x > targetX) worker.x--;
     else if (worker.y < targetY) worker.y++;
     else if (worker.y > targetY) worker.y--;
 
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height); // Clear the canvas
     drawWorkers(ctx); // Redraw workers as they move
 
     if (worker.x === targetX && worker.y === targetY) {
       clearInterval(interval);
       onArrive();
     }
-  }, 300); // Simulate movement delay per step
+  }, movementInterval); // Delay between movement steps
 }

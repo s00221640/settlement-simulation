@@ -17,7 +17,7 @@ console.log("Workers at initialization:", workers);
 
 function drawMapWithWorkers() {
   drawMap(ctx);
-  drawWorkers(ctx); // Pass ctx to drawWorkers
+  drawWorkers(ctx); // Pass ctx explicitly to drawWorkers
 }
 
 // Redraw the map with workers
@@ -31,7 +31,7 @@ function workerAI() {
       if (nearestResource) {
         console.log(`Worker at (${worker.x}, ${worker.y}) moving to (${nearestResource.x}, ${nearestResource.y})`);
         worker.isMoving = true; // Mark worker as moving
-        moveWorkerToTile(worker, nearestResource.x, nearestResource.y, () => {
+        moveWorkerToTile(worker, nearestResource.x, nearestResource.y, ctx, () => { // Pass ctx here
           worker.isMoving = false; // Reset movement flag
           // Only assign the task if the worker is now on the resource tile
           if (worker.x === nearestResource.x && worker.y === nearestResource.y) {
