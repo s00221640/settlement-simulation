@@ -1,6 +1,6 @@
 import { generateMap, drawMap, map } from "./scripts/map.js";
 import { collectWood, collectStone } from "./scripts/resources.js";
-import { addWorker, drawWorkers, assignTask, workers, moveWorkerToTile } from "./scripts/workers.js";
+import { addWorker, drawWorkers, workers, moveWorkerToTile } from "./scripts/workers.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -8,19 +8,40 @@ const ctx = canvas.getContext("2d");
 const rows = canvas.height / 50;
 const cols = canvas.width / 50;
 
-// Initialize the game
-generateMap(rows, cols);
-addWorker(0, 0); // Add the first worker
-let selectedWorker = workers[0]; // Default to the first worker
+// Load textures
+const grassTexture = new Image();
+const forestTexture = new Image();
+const stoneTexture = new Image();
 
-console.log("Workers at initialization:", workers);
+grassTexture.src = "./textures/Grass.png";
+forestTexture.src = "./textures/Forest.png";
+stoneTexture.src = "./textures/Stone.png";
+
+// Wait for all textures to load before rendering the map
+const texturesLoaded = new Promise((resolve) => {
+  let loadedCount = 0;
+  const totalTextures = 3;
+
+  const checkLoaded = () => {
+    loadedCount++;
+    if (loadedCount === totalTextures) resolve();
+  };
+
+  grassTexture.onload = checkLoaded;
+  forestTexture.onload = checkLoaded;
+  stoneTexture.onload = checkLoaded;
+});
+
+// Initialize the game
+async function initializeGame() {
+  await texturesLoaded; // Wait for textures to load
+  generateMap(rows, cols);
+  addWorker(0, 0); // Add the first worker
+  drawMapWithWorkers();
+  console.log("Game initialized:", workers, map);
+}
 
 function drawMapWithWorkers() {
-  const grassTexture = document.getElementById("grassTexture");
-  const forestTexture = document.getElementById("forestTexture");
-  const stoneTexture = document.getElementById("stoneTexture");
-
-  // Draw the map
   map.forEach((row, rowIndex) => {
     row.forEach((tile, colIndex) => {
       if (tile.type === "grass") {
@@ -33,25 +54,23 @@ function drawMapWithWorkers() {
     });
   });
 
-  // Draw the workers
   drawWorkers(ctx);
 }
 
-// Redraw the map with workers
-drawMapWithWorkers();
+initializeGame();
 
 // Assign tasks to workers
 document.getElementById("gatherWood").addEventListener("click", () => {
+  const selectedWorker = workers[0];
   if (selectedWorker) {
     const nearestResource = findNearestResource(selectedWorker.x, selectedWorker.y, "forest");
     if (nearestResource) {
       moveWorkerToTile(selectedWorker, nearestResource.x, nearestResource.y, ctx, drawMapWithWorkers, () => {
-        if (selectedWorker.inventory < selectedWorker.capacity) {
-          collectWood(map, wood => {
+        if (selectedWorker.x === nearestResource.x && selectedWorker.y === nearestResource.y) {
+          collectWood(map, nearestResource.x, nearestResource.y, wood => {
             document.getElementById("woodCount").textContent = wood;
-            selectedWorker.inventory++;
+            drawMapWithWorkers();
           });
-          drawMapWithWorkers();
         }
       });
     }
@@ -59,23 +78,22 @@ document.getElementById("gatherWood").addEventListener("click", () => {
 });
 
 document.getElementById("gatherStone").addEventListener("click", () => {
+  const selectedWorker = workers[0];
   if (selectedWorker) {
     const nearestResource = findNearestResource(selectedWorker.x, selectedWorker.y, "stone");
     if (nearestResource) {
       moveWorkerToTile(selectedWorker, nearestResource.x, nearestResource.y, ctx, drawMapWithWorkers, () => {
-        if (selectedWorker.inventory < selectedWorker.capacity) {
-          collectStone(map, stone => {
+        if (selectedWorker.x === nearestResource.x && selectedWorker.y === nearestResource.y) {
+          collectStone(map, nearestResource.x, nearestResource.y, stone => {
             document.getElementById("stoneCount").textContent = stone;
-            selectedWorker.inventory++;
+            drawMapWithWorkers();
           });
-          drawMapWithWorkers();
         }
       });
     }
   }
 });
 
-// Find the nearest resource tile of a specific type
 function findNearestResource(x, y, type) {
   let nearest = null;
   let minDistance = Infinity;
@@ -95,11 +113,10 @@ function findNearestResource(x, y, type) {
   return nearest;
 }
 
-// Event listener to recruit new workers
+// Recruit worker
 document.getElementById("recruitWorker").addEventListener("click", () => {
   const x = Math.floor(Math.random() * cols);
   const y = Math.floor(Math.random() * rows);
   addWorker(x, y);
-  console.log(`Recruited new worker at (${x}, ${y})`);
   drawMapWithWorkers();
 });

@@ -1,28 +1,24 @@
-let wood = 0;
-let stone = 0;
+let woodCount = 0;
+let stoneCount = 0;
 
-export function collectWood(map, updateUI) {
-  console.log("Collecting wood..."); // Debug
-  const forestTile = map.flat().find(tile => tile.type === "forest");
-  if (forestTile) {
-    console.log("Found forest tile, converting to grass."); // Debug
-    forestTile.type = "grass";
-    wood += 1;
-    updateUI(wood);
+export function collectWood(map, x, y, updateWood) {
+  if (map[y][x].type === "forest") {
+    map[y][x].type = "grass"; // Convert to grass after collection
+    woodCount++;
+    updateWood(woodCount);
+    console.log(`Collected wood at (${x}, ${y})`);
   } else {
-    alert("No more forest to gather wood!");
+    console.error(`No wood to collect at (${x}, ${y})`);
   }
 }
 
-export function collectStone(map, updateUI) {
-  console.log("Collecting stone..."); // Debug
-  const stoneTile = map.flat().find(tile => tile.type === "stone");
-  if (stoneTile) {
-    console.log("Found stone tile, converting to grass."); // Debug
-    stoneTile.type = "grass";
-    stone += 1;
-    updateUI(stone);
+export function collectStone(map, x, y, updateStone) {
+  if (map[y][x].type === "stone") {
+    map[y][x].type = "grass"; // Convert to grass after collection
+    stoneCount++;
+    updateStone(stoneCount);
+    console.log(`Collected stone at (${x}, ${y})`);
   } else {
-    alert("No more stone to gather!");
+    console.error(`No stone to collect at (${x}, ${y})`);
   }
 }

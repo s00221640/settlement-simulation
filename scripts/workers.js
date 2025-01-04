@@ -1,7 +1,7 @@
 export const workers = [];
 
 export function addWorker(x, y) {
-  workers.push({ x, y, task: null, isMoving: false, inventory: 0, capacity: 10 });
+  workers.push({ x, y, task: null, isMoving: false });
 }
 
 export function drawWorkers(ctx) {
@@ -10,19 +10,6 @@ export function drawWorkers(ctx) {
   workers.forEach(worker => {
     ctx.drawImage(workerTexture, worker.x * 50, worker.y * 50, 50, 50);
   });
-}
-
-export function assignTask(worker, task, map, onComplete) {
-  if (!worker) return;
-  console.log(`Assigning task '${task}' to worker at (${worker.x}, ${worker.y})`);
-  worker.task = task;
-
-  setTimeout(() => {
-    if (task === "gatherWood" || task === "gatherStone") {
-      onComplete();
-    }
-    worker.task = null;
-  }, 1000); // Simulated delay of 1 second
 }
 
 export function moveWorkerToTile(worker, targetX, targetY, ctx, drawMapWithWorkers, onArrive) {
