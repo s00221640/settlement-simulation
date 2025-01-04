@@ -1,7 +1,7 @@
 export const workers = [];
 
 export function addWorker(x, y) {
-  workers.push({ x, y, task: null });
+  workers.push({ x, y, task: null, isMoving: false });
 }
 
 export function drawWorkers(ctx) {
@@ -21,6 +21,7 @@ export function drawWorkers(ctx) {
 
 export function assignTask(worker, task, map, onComplete) {
   if (!worker) return;
+  console.log(`Assigning task '${task}' to worker at (${worker.x}, ${worker.y})`);
   worker.task = task;
 
   setTimeout(() => {
@@ -33,7 +34,19 @@ export function assignTask(worker, task, map, onComplete) {
 
 export function moveWorkerToTile(worker, targetX, targetY, onArrive) {
   console.log(`Moving worker from (${worker.x}, ${worker.y}) to (${targetX}, ${targetY})`);
-  worker.x = targetX;
-  worker.y = targetY;
-  setTimeout(onArrive, 500); // Simulate movement delay
+
+  // Simulate worker movement (tile by tile)
+  const interval = setInterval(() => {
+    if (worker.x < targetX) worker.x++;
+    else if (worker.x > targetX) worker.x--;
+    else if (worker.y < targetY) worker.y++;
+    else if (worker.y > targetY) worker.y--;
+
+    drawWorkers(ctx); // Redraw workers as they move
+
+    if (worker.x === targetX && worker.y === targetY) {
+      clearInterval(interval);
+      onArrive();
+    }
+  }, 300); // Simulate movement delay per step
 }

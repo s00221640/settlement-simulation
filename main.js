@@ -17,7 +17,7 @@ console.log("Workers at initialization:", workers);
 
 function drawMapWithWorkers() {
   drawMap(ctx);
-  drawWorkers(ctx);
+  drawWorkers(ctx); // Pass ctx to drawWorkers
 }
 
 // Redraw the map with workers
@@ -26,25 +26,30 @@ drawMapWithWorkers();
 // Add AI for workers
 function workerAI() {
   workers.forEach(worker => {
-    if (!worker.task) {
+    if (!worker.task && !worker.isMoving) { // Prevent new tasks during movement
       const nearestResource = findNearestResource(worker.x, worker.y);
       if (nearestResource) {
         console.log(`Worker at (${worker.x}, ${worker.y}) moving to (${nearestResource.x}, ${nearestResource.y})`);
+        worker.isMoving = true; // Mark worker as moving
         moveWorkerToTile(worker, nearestResource.x, nearestResource.y, () => {
-          if (nearestResource.type === "forest") {
-            assignTask(worker, "gatherWood", map, () => {
-              collectWood(map, wood => {
-                document.getElementById("woodCount").textContent = wood;
+          worker.isMoving = false; // Reset movement flag
+          // Only assign the task if the worker is now on the resource tile
+          if (worker.x === nearestResource.x && worker.y === nearestResource.y) {
+            if (nearestResource.type === "forest") {
+              assignTask(worker, "gatherWood", map, () => {
+                collectWood(map, wood => {
+                  document.getElementById("woodCount").textContent = wood;
+                });
+                drawMapWithWorkers();
               });
-              drawMapWithWorkers();
-            });
-          } else if (nearestResource.type === "stone") {
-            assignTask(worker, "gatherStone", map, () => {
-              collectStone(map, stone => {
-                document.getElementById("stoneCount").textContent = stone;
+            } else if (nearestResource.type === "stone") {
+              assignTask(worker, "gatherStone", map, () => {
+                collectStone(map, stone => {
+                  document.getElementById("stoneCount").textContent = stone;
+                });
+                drawMapWithWorkers();
               });
-              drawMapWithWorkers();
-            });
+            }
           }
         });
       }
