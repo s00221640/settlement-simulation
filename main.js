@@ -16,55 +16,73 @@ let selectedWorker = workers[0]; // Default to the first worker
 console.log("Workers at initialization:", workers);
 
 function drawMapWithWorkers() {
-  drawMap(ctx);
-  drawWorkers(ctx); // Pass ctx explicitly to drawWorkers
+  const grassTexture = document.getElementById("grassTexture");
+  const forestTexture = document.getElementById("forestTexture");
+  const stoneTexture = document.getElementById("stoneTexture");
+
+  // Draw the map
+  map.forEach((row, rowIndex) => {
+    row.forEach((tile, colIndex) => {
+      if (tile.type === "grass") {
+        ctx.drawImage(grassTexture, colIndex * 50, rowIndex * 50, 50, 50);
+      } else if (tile.type === "forest") {
+        ctx.drawImage(forestTexture, colIndex * 50, rowIndex * 50, 50, 50);
+      } else if (tile.type === "stone") {
+        ctx.drawImage(stoneTexture, colIndex * 50, rowIndex * 50, 50, 50);
+      }
+    });
+  });
+
+  // Draw the workers
+  drawWorkers(ctx);
 }
 
 // Redraw the map with workers
 drawMapWithWorkers();
 
-// Add AI for workers
-function workerAI() {
-  workers.forEach(worker => {
-    if (!worker.task && !worker.isMoving) { // Prevent new tasks during movement
-      const nearestResource = findNearestResource(worker.x, worker.y);
-      if (nearestResource) {
-        console.log(`Worker at (${worker.x}, ${worker.y}) moving to (${nearestResource.x}, ${nearestResource.y})`);
-        worker.isMoving = true; // Mark worker as moving
-        moveWorkerToTile(worker, nearestResource.x, nearestResource.y, ctx, () => { // Pass ctx here
-          worker.isMoving = false; // Reset movement flag
-          // Only assign the task if the worker is now on the resource tile
-          if (worker.x === nearestResource.x && worker.y === nearestResource.y) {
-            if (nearestResource.type === "forest") {
-              assignTask(worker, "gatherWood", map, () => {
-                collectWood(map, wood => {
-                  document.getElementById("woodCount").textContent = wood;
-                });
-                drawMapWithWorkers();
-              });
-            } else if (nearestResource.type === "stone") {
-              assignTask(worker, "gatherStone", map, () => {
-                collectStone(map, stone => {
-                  document.getElementById("stoneCount").textContent = stone;
-                });
-                drawMapWithWorkers();
-              });
-            }
-          }
-        });
-      }
+// Assign tasks to workers
+document.getElementById("gatherWood").addEventListener("click", () => {
+  if (selectedWorker) {
+    const nearestResource = findNearestResource(selectedWorker.x, selectedWorker.y, "forest");
+    if (nearestResource) {
+      moveWorkerToTile(selectedWorker, nearestResource.x, nearestResource.y, ctx, drawMapWithWorkers, () => {
+        if (selectedWorker.inventory < selectedWorker.capacity) {
+          collectWood(map, wood => {
+            document.getElementById("woodCount").textContent = wood;
+            selectedWorker.inventory++;
+          });
+          drawMapWithWorkers();
+        }
+      });
     }
-  });
-}
+  }
+});
 
-// Find the nearest resource tile (wood or stone)
-function findNearestResource(x, y) {
+document.getElementById("gatherStone").addEventListener("click", () => {
+  if (selectedWorker) {
+    const nearestResource = findNearestResource(selectedWorker.x, selectedWorker.y, "stone");
+    if (nearestResource) {
+      moveWorkerToTile(selectedWorker, nearestResource.x, nearestResource.y, ctx, drawMapWithWorkers, () => {
+        if (selectedWorker.inventory < selectedWorker.capacity) {
+          collectStone(map, stone => {
+            document.getElementById("stoneCount").textContent = stone;
+            selectedWorker.inventory++;
+          });
+          drawMapWithWorkers();
+        }
+      });
+    }
+  }
+});
+
+// Find the nearest resource tile of a specific type
+function findNearestResource(x, y, type) {
   let nearest = null;
   let minDistance = Infinity;
 
   map.forEach((row, rowIndex) => {
     row.forEach((tile, colIndex) => {
-      if (tile.type === "forest" || tile.type === "stone") {
+      if (tile.type === type) {
         const distance = Math.abs(x - colIndex) + Math.abs(y - rowIndex);
         if (distance < minDistance) {
           minDistance = distance;
@@ -76,9 +94,6 @@ function findNearestResource(x, y) {
 
   return nearest;
 }
-
-// Run the worker AI every second
-setInterval(workerAI, 1000);
 
 // Event listener to recruit new workers
 document.getElementById("recruitWorker").addEventListener("click", () => {
