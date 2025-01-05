@@ -20,56 +20,52 @@ function findSimplePath(map, startX, startY, targetX, targetY) {
     let path = [];
     let currentX = startX;
     let currentY = startY;
-    let iterations = 0;
+    let visited = new Set();
     const maxIterations = 50; // Limit path length
 
-    while ((currentX !== targetX || currentY !== targetY) && iterations < maxIterations) {
-        let nextX = currentX;
-        let nextY = currentY;
+    while ((currentX !== targetX || currentY !== targetY) && path.length < maxIterations) {
+        visited.add(`${currentX},${currentY}`);
         
-        // Try to move towards target
-        if (currentX < targetX && isPassable(map, currentX + 1, currentY)) {
-            nextX = currentX + 1;
-        } else if (currentX > targetX && isPassable(map, currentX - 1, currentY)) {
-            nextX = currentX - 1;
-        } else if (currentY < targetY && isPassable(map, currentX, currentY + 1)) {
-            nextY = currentY + 1;
-        } else if (currentY > targetY && isPassable(map, currentX, currentY - 1)) {
-            nextY = currentY - 1;
-        } else {
-            // If can't move directly towards target, try to move around obstacles
-            const possibleMoves = [
-                {x: currentX + 1, y: currentY},
-                {x: currentX - 1, y: currentY},
-                {x: currentX, y: currentY + 1},
-                {x: currentX, y: currentY - 1}
-            ];
+        let nextMove = null;
+        let minDistance = Infinity;
 
-            const validMove = possibleMoves.find(move => 
-                isPassable(map, move.x, move.y) && 
-                !path.some(p => p.x === move.x && p.y === move.y)
-            );
+        // Check all possible moves
+        const moves = [
+            { x: currentX + 1, y: currentY },
+            { x: currentX - 1, y: currentY },
+            { x: currentX, y: currentY + 1 },
+            { x: currentX, y: currentY - 1 }
+        ];
 
-            if (validMove) {
-                nextX = validMove.x;
-                nextY = validMove.y;
-            } else {
-                break; // No valid moves found
+        for (const move of moves) {
+            if (isPassable(map, move.x, move.y) && !visited.has(`${move.x},${move.y}`)) {
+                const distance = Math.abs(move.x - targetX) + Math.abs(move.y - targetY);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nextMove = move;
+                }
             }
         }
 
-        if (nextX === currentX && nextY === currentY) {
-            break; // Stuck
+        if (!nextMove) {
+            console.log("No valid moves found, stuck");
+            break; // No valid moves
         }
 
-        currentX = nextX;
-        currentY = nextY;
-        path.push({x: currentX, y: currentY});
-        iterations++;
+        path.push(nextMove);
+        currentX = nextMove.x;
+        currentY = nextMove.y;
     }
 
+    if (currentX !== targetX || currentY !== targetY) {
+        console.log("Failed to reach target:", { startX, startY, targetX, targetY });
+        return [];
+    }
+
+    console.log("Path found:", path);
     return path;
 }
+
 
 export function moveWorkerToTile(worker, targetX, targetY, ctx, drawMapWithWorkers, onArrive) {
     if (worker.isMoving) return;
