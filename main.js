@@ -1,10 +1,12 @@
+// main.js
 import { generateMap, preprocessTreeTypes, drawMap, map } from "./scripts/map.js";
 import { collectWood, collectStone } from "./scripts/resources.js";
 import { addWorker, drawWorkers, workers, moveWorkerToTile } from "./scripts/workers.js";
 import { addWarrior, drawWarriors, warriors, moveWarriorToTile } from "./scripts/warriors.js";
-import { addBear, drawBears, bears, moveBears } from "./scripts/bears.js";
+import { addBear, drawBears, bears, moveBears, removeBear } from "./scripts/bears.js";
 import { loadTextures } from "./scripts/textures.js";
 import { isTileOccupied } from './scripts/utils.js';
+import { attack } from './scripts/combat.js';
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -27,41 +29,11 @@ function findValidSpawnLocation() {
     for (let attempt = 0; attempt < 100; attempt++) {
         const x = Math.floor(Math.random() * cols);
         const y = Math.floor(Math.random() * rows);
-        if (map[y][x].type === "grass" && !isTileOccupied(x, y)) {
+        if (map[y][x].type === "grass" && !isTileOccupied(x, y, workers, warriors, bears)) {
             return { x, y };
         }
     }
-    console.warn("No valid spawn location found!");
-    return { x: 0, y: 0 };
-}
-
-// Find a spawn location near trees
-function findSpawnNearTrees() {
-    const candidates = [];
-    map.forEach((row, y) => {
-        row.forEach((tile, x) => {
-            if (tile.type === "grass" && !isTileOccupied(x, y)) {
-                const adjacentTiles = [
-                    { x: x + 1, y },
-                    { x: x - 1, y },
-                    { x, y: y + 1 },
-                    { x, y: y - 1 }
-                ];
-                if (adjacentTiles.some(tile =>
-                    tile.x >= 0 && tile.x < cols && tile.y >= 0 && tile.y < rows &&
-                    map[tile.y][tile.x].type === "forest")) {
-                    candidates.push({ x, y });
-                }
-            }
-        });
-    });
-
-    if (candidates.length > 0) {
-        return candidates[Math.floor(Math.random() * candidates.length)];
-    } else {
-        console.warn("No valid spawn location near trees found!");
-        return findValidSpawnLocation();
-    }
+    return null;
 }
 
 // Start the game
@@ -73,12 +45,16 @@ async function startGame() {
 
         // Spawn initial worker
         const workerSpawn = findValidSpawnLocation();
-        addWorker(workerSpawn.x, workerSpawn.y);
+        if (workerSpawn) {
+            addWorker(workerSpawn.x, workerSpawn.y);
+        }
 
         // Spawn initial bears
         for (let i = 0; i < 3; i++) {
-            const bearSpawn = findSpawnNearTrees();
-            addBear(bearSpawn.x, bearSpawn.y);
+            const bearSpawn = findValidSpawnLocation();
+            if (bearSpawn) {
+                addBear(bearSpawn.x, bearSpawn.y);
+            }
         }
 
         drawMapWithEntities();
@@ -92,15 +68,19 @@ startGame();
 // Handle worker recruitment
 document.getElementById("recruitWorker").addEventListener("click", () => {
     const spawnPoint = findValidSpawnLocation();
-    addWorker(spawnPoint.x, spawnPoint.y);
-    drawMapWithEntities();
+    if (spawnPoint) {
+        addWorker(spawnPoint.x, spawnPoint.y);
+        drawMapWithEntities();
+    }
 });
 
 // Handle warrior recruitment
 document.getElementById("recruitWarrior").addEventListener("click", () => {
     const spawnPoint = findValidSpawnLocation();
-    addWarrior(spawnPoint.x, spawnPoint.y);
-    drawMapWithEntities();
+    if (spawnPoint) {
+        addWarrior(spawnPoint.x, spawnPoint.y);
+        drawMapWithEntities();
+    }
 });
 
 // Handle resource gathering
@@ -140,22 +120,33 @@ document.getElementById("gatherStone").addEventListener("click", () => {
     }
 });
 
-// Bears attack logic and movement
+// Bears movement and combat interval
 setInterval(() => {
     bears.forEach(bear => {
-        moveBears(bear);
+        moveBears(bear, ctx, drawMapWithEntities);
+    });
+}, 1000);
 
-        // Check for nearby targets
-        const targets = workers.concat(warriors).filter(entity => 
-            Math.abs(entity.x - bear.x) <= 4 && Math.abs(entity.y - bear.y) <= 4
+// Warriors combat interval
+setInterval(() => {
+    warriors.forEach(warrior => {
+        if (warrior.health <= 0) return;
+        
+        // Look for bears in attack range
+        const nearbyBears = bears.filter(bear => 
+            bear.health > 0 && 
+            Math.abs(bear.x - warrior.x) <= 1 && 
+            Math.abs(bear.y - warrior.y) <= 1
         );
-
-        if (targets.length > 0) {
-            console.log(`Bear at (${bear.x}, ${bear.y}) is attacking!`);
-            // Handle attack logic here
+        
+        if (nearbyBears.length > 0) {
+            const target = nearbyBears[0];
+            if (attack(warrior, target)) {
+                removeBear(target);
+            }
         }
     });
-
+    
     drawMapWithEntities();
 }, 1000);
 

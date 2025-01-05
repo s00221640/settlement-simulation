@@ -7,21 +7,44 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <h1>Settlement Simulation</h1>
+    
+    <div id="resources" class="info-panel">
+        <h2>Resources</h2>
+        <p>Wood: <span id="woodCount">100</span></p>
+        <p>Stone: <span id="stoneCount">50</span></p>
+    </div>
+
+    <div id="unit-info" class="info-panel">
+        <h2>Unit Costs</h2>
+        <p>Worker (Wood: 50)</p>
+        <p>Warrior (Wood: 30, Stone: 50)</p>
+    </div>
+
     <canvas id="gameCanvas" width="500" height="500"></canvas>
+    
     <div id="ui">
-        <button id="recruitWorker">Recruit Worker</button>
-        <button id="recruitWarrior">Recruit Warrior</button> <!-- Added -->
-        <button id="gatherWood">Gather Wood</button>
-        <button id="gatherStone">Gather Stone</button>
-        <p>Wood: <span id="woodCount">0</span></p>
-        <p>Stone: <span id="stoneCount">0</span></p>
+        <div class="button-group">
+            <button id="recruitWorker">Recruit Worker</button>
+            <button id="recruitWarrior">Recruit Warrior</button>
+        </div>
+        <div class="button-group">
+            <button id="gatherWood">Gather Wood</button>
+            <button id="gatherStone">Gather Stone</button>
+        </div>
+    </div>
+
+    <div id="combat-info" class="info-panel">
+        <h2>Unit Stats</h2>
+        <p>Worker: 50 HP</p>
+        <p>Warrior: 100 HP, 20 DMG</p>
+        <p>Bear: 150 HP, 30 DMG</p>
     </div>
     
     <script src="scripts/textures.js" type="module"></script>
     <script src="scripts/map.js" type="module"></script>
     <script src="scripts/resources.js" type="module"></script>
-    <script src="scripts/workers.js" type="module"></script>
-    <script src="scripts/warriors.js" type="module"></script>
+    <script src="scripts/utils.js" type="module"></script>
     <script src="main.js" type="module"></script>
 </body>
 </html>

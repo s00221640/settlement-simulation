@@ -1,4 +1,5 @@
 import { textures } from './textures.js';
+import { initializeHealth, drawHealthBar } from './combat.js';
 
 export const warriors = [];
 
@@ -8,7 +9,9 @@ export const warriors = [];
  * @param {number} y - The y-coordinate.
  */
 export function addWarrior(x, y) {
-    warriors.push({ x, y, isMoving: false });
+    const warrior = { x, y, type: 'warrior', isMoving: false };
+    initializeHealth(warrior, 'warrior');
+    warriors.push(warrior);
 }
 
 /**
@@ -17,7 +20,9 @@ export function addWarrior(x, y) {
  */
 export function drawWarriors(ctx) {
     warriors.forEach(warrior => {
+        if (warrior.health <= 0) return; // Don't draw dead warriors
         ctx.drawImage(textures.warrior, warrior.x * 50, warrior.y * 50, 50, 50);
+        drawHealthBar(ctx, warrior);
     });
 }
 
@@ -31,7 +36,7 @@ export function drawWarriors(ctx) {
  * @param {Function} onArrive - A callback function executed when the warrior reaches the target.
  */
 export function moveWarriorToTile(warrior, targetX, targetY, ctx, drawMapWithEntities, onArrive) {
-    if (warrior.isMoving) return;
+    if (warrior.isMoving || warrior.health <= 0) return;
 
     const path = findSimplePath(window.gameMap, warrior.x, warrior.y, targetX, targetY);
     if (path.length === 0) {
