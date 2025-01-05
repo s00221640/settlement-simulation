@@ -1,4 +1,4 @@
-import { generateMap, drawMap, map } from "./scripts/map.js";
+import { generateMap, preprocessTreeTypes, drawMap, map } from "./scripts/map.js";
 import { collectWood, collectStone } from "./scripts/resources.js";
 import { addWorker, drawWorkers, workers, moveWorkerToTile, assignTask } from "./scripts/workers.js";
 
@@ -38,51 +38,19 @@ const texturesLoaded = new Promise((resolve) => {
   treeBottomTexture.onload = checkLoaded;
 });
 
+function drawMapWithWorkers() {
+  drawMap(ctx);
+  drawWorkers(ctx);
+}
+
 // Initialize the game
 async function initializeGame() {
   await texturesLoaded; // Wait for textures to load
   generateMap(rows, cols);
+  preprocessTreeTypes(); // Process tree connections
   addWorker(0, 0); // Add the first worker
   drawMapWithWorkers();
   console.log("Game initialized:", workers, map);
-}
-
-function drawMapWithWorkers() {
-  for (let rowIndex = 0; rowIndex < map.length; rowIndex++) {
-    for (let colIndex = 0; colIndex < map[rowIndex].length; colIndex++) {
-      const tile = map[rowIndex][colIndex];
-
-      // Check for tree columns
-      if (tile.type === "forest") {
-        const isTopTree = (rowIndex > 0 && map[rowIndex - 1][colIndex]?.type === "forest");
-        const isBottomTree = (rowIndex < map.length - 1 && map[rowIndex + 1][colIndex]?.type === "forest");
-
-        if (isTopTree && !isBottomTree) {
-          // Top of a tree column
-          ctx.drawImage(treeTopTexture, colIndex * 50, rowIndex * 50, 50, 50);
-        } else if (!isTopTree && isBottomTree) {
-          // Bottom of a tree column
-          ctx.drawImage(treeBottomTexture, colIndex * 50, rowIndex * 50, 50, 50);
-        } else if (isTopTree && isBottomTree) {
-          // Middle or alternating tree column
-          if (rowIndex % 2 === 0) {
-            ctx.drawImage(treeTopTexture, colIndex * 50, rowIndex * 50, 50, 50);
-          } else {
-            ctx.drawImage(treeBottomTexture, colIndex * 50, rowIndex * 50, 50, 50);
-          }
-        } else {
-          // Default forest texture for isolated trees
-          ctx.drawImage(forestTexture, colIndex * 50, rowIndex * 50, 50, 50);
-        }
-      } else if (tile.type === "stone") {
-        ctx.drawImage(stoneTexture, colIndex * 50, rowIndex * 50, 50, 50);
-      } else {
-        ctx.drawImage(grassTexture, colIndex * 50, rowIndex * 50, 50, 50);
-      }
-    }
-  }
-
-  drawWorkers(ctx);
 }
 
 initializeGame();
