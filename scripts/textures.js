@@ -4,7 +4,9 @@ export const textures = {
     stone: null,
     treeTop: null,
     treeBottom: null,
-    worker: null
+    worker: null,
+    warrior: null,
+    bear: null // Add Bear texture
 };
 
 function createImage(src, name) {
@@ -30,7 +32,9 @@ export async function loadTextures() {
             createImage("textures/Stone.png", "stone").then(img => textures.stone = img),
             createImage("textures/Tree_top.png", "treeTop").then(img => textures.treeTop = img),
             createImage("textures/Tree_bottom.png", "treeBottom").then(img => textures.treeBottom = img),
-            createImage("textures/worker.png", "worker").then(img => textures.worker = img)
+            createImage("textures/Worker.png", "worker").then(img => textures.worker = img),
+            createImage("textures/Warrior.png", "warrior").then(img => textures.warrior = img),
+            createImage("textures/Bear.png", "bear").then(img => textures.bear = img) // Load Bear texture
         ];
 
         await Promise.all(texturePromises);
