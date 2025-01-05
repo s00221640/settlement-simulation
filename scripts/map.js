@@ -1,3 +1,5 @@
+import { textures } from './textures.js';
+
 export const map = [];
 
 export function generateMap(rows, cols) {
@@ -19,35 +21,30 @@ export function generateMap(rows, cols) {
 }
 
 export function preprocessTreeTypes() {
-    // Process each column
+    // Process each column for vertical tree pairs
     for (let x = 0; x < map[0].length; x++) {
-        // Start from top of each column
         for (let y = 0; y < map.length - 1; y++) {
-            // Skip if current tile isn't a forest or already processed
-            if (map[y][x].type !== "forest" || map[y][x].treeType !== null) {
+            // Skip if current tile isn't a forest
+            if (map[y][x].type !== "forest") {
                 continue;
             }
-            
-            // Check next tile down
+            // Skip if current tile is already part of a pair
+            if (map[y][x].treeType !== null) {
+                continue;
+            }
+            // Look at next tile down
             if (map[y + 1][x].type === "forest" && map[y + 1][x].treeType === null) {
                 // Create a pair
                 map[y][x].treeType = "treeTop";
                 map[y + 1][x].treeType = "treeBottom";
-                y++; // Skip the next tile since we've processed it
+                // Skip the next tile since we've used it
+                y++;
             }
         }
     }
 }
 
 export function drawMap(ctx) {
-    const textures = {
-        grass: document.getElementById("grassTexture"),
-        forest: document.getElementById("forestTexture"),
-        stone: document.getElementById("stoneTexture"),
-        treeTop: document.getElementById("treeTopTexture"),
-        treeBottom: document.getElementById("treeBottomTexture")
-    };
-
     const tileSize = 50;
 
     map.forEach((row, y) => {
@@ -57,7 +54,9 @@ export function drawMap(ctx) {
 
             // Draw resources on top
             if (tile.type === "forest") {
-                const treeTexture = tile.treeType ? textures[tile.treeType] : textures.forest;
+                const treeTexture = tile.treeType === "treeTop" ? textures.treeTop :
+                                  tile.treeType === "treeBottom" ? textures.treeBottom :
+                                  textures.forest;
                 ctx.drawImage(treeTexture, x * tileSize, y * tileSize, tileSize, tileSize);
             } else if (tile.type === "stone") {
                 ctx.drawImage(textures.stone, x * tileSize, y * tileSize, tileSize, tileSize);

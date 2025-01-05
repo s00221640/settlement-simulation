@@ -1,6 +1,7 @@
 import { generateMap, preprocessTreeTypes, drawMap, map } from "./scripts/map.js";
 import { collectWood, collectStone } from "./scripts/resources.js";
-import { addWorker, drawWorkers, workers, moveWorkerToTile, assignTask } from "./scripts/workers.js";
+import { addWorker, drawWorkers, workers, moveWorkerToTile } from "./scripts/workers.js";
+import { loadTextures } from "./scripts/textures.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -8,111 +9,154 @@ const ctx = canvas.getContext("2d");
 const rows = canvas.height / 50;
 const cols = canvas.width / 50;
 
-// Load textures
-const grassTexture = new Image();
-const forestTexture = new Image();
-const stoneTexture = new Image();
-const treeTopTexture = new Image();
-const treeBottomTexture = new Image();
-
-grassTexture.src = "./textures/Grass.png";
-forestTexture.src = "./textures/Forest.png";
-stoneTexture.src = "./textures/Stone.png";
-treeTopTexture.src = "./textures/Tree_top.png";
-treeBottomTexture.src = "./textures/Tree_bottom.png";
-
-// Wait for all textures to load before rendering the map
-const texturesLoaded = new Promise((resolve) => {
-  let loadedCount = 0;
-  const totalTextures = 5;
-
-  const checkLoaded = () => {
-    loadedCount++;
-    if (loadedCount === totalTextures) resolve();
-  };
-
-  grassTexture.onload = checkLoaded;
-  forestTexture.onload = checkLoaded;
-  stoneTexture.onload = checkLoaded;
-  treeTopTexture.onload = checkLoaded;
-  treeBottomTexture.onload = checkLoaded;
-});
+window.gameMap = map;
 
 function drawMapWithWorkers() {
-  drawMap(ctx);
-  drawWorkers(ctx);
+    drawMap(ctx);
+    drawWorkers(ctx);
 }
 
-// Initialize the game
-async function initializeGame() {
-  await texturesLoaded; // Wait for textures to load
-  generateMap(rows, cols);
-  preprocessTreeTypes(); // Process tree connections
-  addWorker(0, 0); // Add the first worker
-  drawMapWithWorkers();
-  console.log("Game initialized:", workers, map);
-}
-
-initializeGame();
-
-// Assign tasks to workers
-document.getElementById("gatherWood").addEventListener("click", () => {
-  const selectedWorker = workers[0];
-  if (selectedWorker) {
-    const nearestResource = findNearestResource(selectedWorker.x, selectedWorker.y, "forest");
-    if (nearestResource) {
-      moveWorkerToTile(selectedWorker, nearestResource.x, nearestResource.y, ctx, drawMapWithWorkers, () => {
-        if (selectedWorker.x === nearestResource.x && selectedWorker.y === nearestResource.y) {
-          collectWood(map, nearestResource.x, nearestResource.y, wood => {
-            document.getElementById("woodCount").textContent = wood;
-            drawMapWithWorkers();
-          });
+function findValidSpawnLocation() {
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+            if (map[y][x].type === "grass") {
+                return { x, y };
+            }
         }
-      });
     }
-  }
+    return { x: 0, y: 0 };
+}
+
+async function startGame() {
+    try {
+        await loadTextures();
+        generateMap(rows, cols);
+        preprocessTreeTypes();
+        const spawnPoint = findValidSpawnLocation();
+        addWorker(spawnPoint.x, spawnPoint.y);
+        drawMapWithWorkers();
+    } catch (error) {
+        console.error('Failed to start game:', error);
+    }
+}
+
+// Start the game
+startGame();
+
+// Helper functions
+function isAdjacentToResource(workerX, workerY, resourceX, resourceY) {
+    return (Math.abs(workerX - resourceX) === 1 && workerY === resourceY) ||
+           (Math.abs(workerY - resourceY) === 1 && workerX === resourceX);
+}
+
+function createGatheringTask(resource, type) {
+    return {
+        resource: resource,
+        type: type
+    };
+}
+
+// Handle worker recruitment
+document.getElementById("recruitWorker").addEventListener("click", () => {
+    const spawnPoint = findValidSpawnLocation();
+    addWorker(spawnPoint.x, spawnPoint.y);
+    drawMapWithWorkers();
+});
+
+// Handle resource gathering
+document.getElementById("gatherWood").addEventListener("click", () => {
+    const selectedWorker = workers[0];
+    if (selectedWorker && !selectedWorker.isMoving) {
+        const nearestResource = findNearestResource(selectedWorker.x, selectedWorker.y, "forest");
+        if (nearestResource) {
+            const adjacentTile = findAdjacentGrassTile(nearestResource.x, nearestResource.y);
+            if (adjacentTile) {
+                selectedWorker.gatheringTask = createGatheringTask(nearestResource, "forest");
+                
+                moveWorkerToTile(selectedWorker, adjacentTile.x, adjacentTile.y, ctx, drawMapWithWorkers, () => {
+                    if (selectedWorker.gatheringTask && 
+                        isAdjacentToResource(selectedWorker.x, selectedWorker.y, 
+                                          selectedWorker.gatheringTask.resource.x, 
+                                          selectedWorker.gatheringTask.resource.y) &&
+                        map[selectedWorker.gatheringTask.resource.y][selectedWorker.gatheringTask.resource.x].type === "forest") {
+                        
+                        collectWood(map, selectedWorker.gatheringTask.resource.x, selectedWorker.gatheringTask.resource.y, wood => {
+                            document.getElementById("woodCount").textContent = wood;
+                            drawMapWithWorkers();
+                        });
+                    } else {
+                        console.log("Worker not properly positioned to gather resource");
+                    }
+                    selectedWorker.gatheringTask = null;
+                });
+            }
+        }
+    }
 });
 
 document.getElementById("gatherStone").addEventListener("click", () => {
-  const selectedWorker = workers[0];
-  if (selectedWorker) {
-    const nearestResource = findNearestResource(selectedWorker.x, selectedWorker.y, "stone");
-    if (nearestResource) {
-      moveWorkerToTile(selectedWorker, nearestResource.x, nearestResource.y, ctx, drawMapWithWorkers, () => {
-        if (selectedWorker.x === nearestResource.x && selectedWorker.y === nearestResource.y) {
-          collectStone(map, nearestResource.x, nearestResource.y, stone => {
-            document.getElementById("stoneCount").textContent = stone;
-            drawMapWithWorkers();
-          });
+    const selectedWorker = workers[0];
+    if (selectedWorker && !selectedWorker.isMoving) {
+        const nearestResource = findNearestResource(selectedWorker.x, selectedWorker.y, "stone");
+        if (nearestResource) {
+            const adjacentTile = findAdjacentGrassTile(nearestResource.x, nearestResource.y);
+            if (adjacentTile) {
+                selectedWorker.gatheringTask = createGatheringTask(nearestResource, "stone");
+                
+                moveWorkerToTile(selectedWorker, adjacentTile.x, adjacentTile.y, ctx, drawMapWithWorkers, () => {
+                    if (selectedWorker.gatheringTask && 
+                        isAdjacentToResource(selectedWorker.x, selectedWorker.y, 
+                                          selectedWorker.gatheringTask.resource.x, 
+                                          selectedWorker.gatheringTask.resource.y) &&
+                        map[selectedWorker.gatheringTask.resource.y][selectedWorker.gatheringTask.resource.x].type === "stone") {
+                        
+                        collectStone(map, selectedWorker.gatheringTask.resource.x, selectedWorker.gatheringTask.resource.y, stone => {
+                            document.getElementById("stoneCount").textContent = stone;
+                            drawMapWithWorkers();
+                        });
+                    } else {
+                        console.log("Worker not properly positioned to gather resource");
+                    }
+                    selectedWorker.gatheringTask = null;
+                });
+            }
         }
-      });
     }
-  }
 });
 
 function findNearestResource(x, y, type) {
-  let nearest = null;
-  let minDistance = Infinity;
+    let nearest = null;
+    let minDistance = Infinity;
 
-  map.forEach((row, rowIndex) => {
-    row.forEach((tile, colIndex) => {
-      if (tile.type === type) {
-        const distance = Math.abs(x - colIndex) + Math.abs(y - rowIndex);
-        if (distance < minDistance) {
-          minDistance = distance;
-          nearest = { ...tile, x: colIndex, y: rowIndex };
-        }
-      }
+    map.forEach((row, rowIndex) => {
+        row.forEach((tile, colIndex) => {
+            if (tile.type === type) {
+                const distance = Math.abs(x - colIndex) + Math.abs(y - rowIndex);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearest = { ...tile, x: colIndex, y: rowIndex };
+                }
+            }
+        });
     });
-  });
 
-  return nearest;
+    return nearest;
 }
 
-// Recruit worker
-document.getElementById("recruitWorker").addEventListener("click", () => {
-  const x = Math.floor(Math.random() * cols);
-  const y = Math.floor(Math.random() * rows);
-  addWorker(x, y);
-  drawMapWithWorkers();
-});
+function findAdjacentGrassTile(x, y) {
+    const adjacentTiles = [
+        { x: x + 1, y },
+        { x: x - 1, y },
+        { x, y: y + 1 },
+        { x, y: y - 1 }
+    ];
+
+    for (const tile of adjacentTiles) {
+        if (tile.x >= 0 && tile.x < cols && tile.y >= 0 && tile.y < rows &&
+            map[tile.y][tile.x].type === "grass") {
+            return tile;
+        }
+    }
+
+    return null;
+}

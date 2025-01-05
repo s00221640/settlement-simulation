@@ -1,65 +1,108 @@
+import { textures } from './textures.js';
+
 export const workers = [];
 
-/**
- * Add a worker to the game at a specific position.
- * @param {number} x - X-coordinate of the worker.
- * @param {number} y - Y-coordinate of the worker.
- */
 export function addWorker(x, y) {
-  workers.push({ x, y, task: null, isMoving: false });
+    workers.push({ x, y, task: null, isMoving: false, gatheringTask: null });
 }
 
-/**
- * Draw all workers on the canvas.
- * @param {CanvasRenderingContext2D} ctx - The canvas context for drawing.
- */
 export function drawWorkers(ctx) {
-  const workerTexture = document.getElementById("workerTexture");
-
-  workers.forEach(worker => {
-    ctx.drawImage(workerTexture, worker.x * 50, worker.y * 50, 50, 50);
-  });
+    workers.forEach(worker => {
+        ctx.drawImage(textures.worker, worker.x * 50, worker.y * 50, 50, 50);
+    });
 }
 
-/**
- * Move a worker to a specified tile on the map.
- * @param {object} worker - The worker object.
- * @param {number} targetX - X-coordinate of the target position.
- * @param {number} targetY - Y-coordinate of the target position.
- * @param {CanvasRenderingContext2D} ctx - The canvas context for redrawing.
- * @param {function} drawMapWithWorkers - Callback to redraw the map and workers.
- * @param {function} onArrive - Callback to execute when the worker reaches the target.
- */
-export function moveWorkerToTile(worker, targetX, targetY, ctx, drawMapWithWorkers, onArrive) {
-  console.log(`Moving worker from (${worker.x}, ${worker.y}) to (${targetX}, ${targetY})`);
+function isPassable(map, x, y) {
+    return x >= 0 && x < map[0].length && y >= 0 && y < map.length && map[y][x].type === "grass";
+}
 
-  const movementInterval = 200; // Adjust for smoother movement (in ms)
-  const interval = setInterval(() => {
-    if (worker.x < targetX) worker.x++;
-    else if (worker.x > targetX) worker.x--;
-    else if (worker.y < targetY) worker.y++;
-    else if (worker.y > targetY) worker.y--;
+function findSimplePath(map, startX, startY, targetX, targetY) {
+    let path = [];
+    let currentX = startX;
+    let currentY = startY;
+    let iterations = 0;
+    const maxIterations = 50; // Limit path length
 
-    drawMapWithWorkers(); // Redraw map and workers at every step
+    while ((currentX !== targetX || currentY !== targetY) && iterations < maxIterations) {
+        let nextX = currentX;
+        let nextY = currentY;
+        
+        // Try to move towards target
+        if (currentX < targetX && isPassable(map, currentX + 1, currentY)) {
+            nextX = currentX + 1;
+        } else if (currentX > targetX && isPassable(map, currentX - 1, currentY)) {
+            nextX = currentX - 1;
+        } else if (currentY < targetY && isPassable(map, currentX, currentY + 1)) {
+            nextY = currentY + 1;
+        } else if (currentY > targetY && isPassable(map, currentX, currentY - 1)) {
+            nextY = currentY - 1;
+        } else {
+            // If can't move directly towards target, try to move around obstacles
+            const possibleMoves = [
+                {x: currentX + 1, y: currentY},
+                {x: currentX - 1, y: currentY},
+                {x: currentX, y: currentY + 1},
+                {x: currentX, y: currentY - 1}
+            ];
 
-    if (worker.x === targetX && worker.y === targetY) {
-      clearInterval(interval);
-      onArrive();
+            const validMove = possibleMoves.find(move => 
+                isPassable(map, move.x, move.y) && 
+                !path.some(p => p.x === move.x && p.y === move.y)
+            );
+
+            if (validMove) {
+                nextX = validMove.x;
+                nextY = validMove.y;
+            } else {
+                break; // No valid moves found
+            }
+        }
+
+        if (nextX === currentX && nextY === currentY) {
+            break; // Stuck
+        }
+
+        currentX = nextX;
+        currentY = nextY;
+        path.push({x: currentX, y: currentY});
+        iterations++;
     }
-  }, movementInterval); // Delay between movement steps
+
+    return path;
 }
 
-/**
- * Assign a task to a worker.
- * @param {object} worker - The worker object.
- * @param {string} task - The task to assign.
- * @param {Array} map - The game map.
- * @param {function} onComplete - Callback to execute when the task is complete.
- */
-export function assignTask(worker, task, map, onComplete) {
-  console.log(`Assigning task '${task}' to worker at (${worker.x}, ${worker.y})`);
-  setTimeout(() => {
-    worker.task = null; // Clear the task
-    onComplete();
-  }, 1000); // Simulated delay of 1 second
+export function moveWorkerToTile(worker, targetX, targetY, ctx, drawMapWithWorkers, onArrive) {
+    if (worker.isMoving) return;
+    
+    const path = findSimplePath(window.gameMap, worker.x, worker.y, targetX, targetY);
+    if (path.length === 0) {
+        console.log("Cannot reach target");
+        return;
+    }
+    
+    worker.isMoving = true;
+    let step = 0;
+    
+    const moveInterval = setInterval(() => {
+        if (step >= path.length) {
+            clearInterval(moveInterval);
+            worker.isMoving = false;
+            onArrive();
+            return;
+        }
+        
+        worker.x = path[step].x;
+        worker.y = path[step].y;
+        step++;
+        
+        drawMapWithWorkers();
+    }, 200);
+}
+
+export function assignTask(worker, task, onComplete) {
+    worker.task = task;
+    setTimeout(() => {
+        worker.task = null;
+        onComplete();
+    }, 1000);
 }

@@ -1,32 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Settlement Simulation</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settlement Simulation</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <canvas id="gameCanvas" width="500" height="500"></canvas>
-  <div id="ui">
-    <button id="recruitWorker">Recruit Worker</button>
-    <button id="gatherWood">Gather Wood</button>
-    <button id="gatherStone">Gather Stone</button>
-    <p>Wood: <span id="woodCount">0</span></p>
-    <p>Stone: <span id="stoneCount">0</span></p>
-  </div>
-  
-  <!-- Hidden textures -->
-  <img id="grassTexture" src="textures/Grass.png" style="display: none;">
-  <img id="forestTexture" src="textures/Forest.png" style="display: none;">
-  <img id="stoneTexture" src="textures/Stone.png" style="display: none;">
-  <img id="treeTopTexture" src="textures/Tree_top.png" style="display: none;">
-  <img id="treeBottomTexture" src="textures/Tree_bottom.png" style="display: none;">
-  <img id="workerTexture" src="textures/worker.png" style="display: none;">
-  
-  <script src="scripts/map.js" type="module"></script>
-  <script src="scripts/resources.js" type="module"></script>
-  <script src="scripts/workers.js" type="module"></script>
-  <script src="main.js" type="module"></script>
+    <canvas id="gameCanvas" width="500" height="500"></canvas>
+    <div id="ui">
+        <button id="recruitWorker">Recruit Worker</button>
+        <button id="gatherWood">Gather Wood</button>
+        <button id="gatherStone">Gather Stone</button>
+        <p>Wood: <span id="woodCount">0</span></p>
+        <p>Stone: <span id="stoneCount">0</span></p>
+    </div>
+    
+    <script src="scripts/textures.js" type="module"></script>
+    <script src="scripts/map.js" type="module"></script>
+    <script src="scripts/resources.js" type="module"></script>
+    <script src="scripts/workers.js" type="module"></script>
+    <script src="main.js" type="module"></script>
 </body>
 </html>
