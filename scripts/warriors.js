@@ -1,5 +1,5 @@
 import { textures } from './textures.js';
-import { initializeHealth, drawHealthBar } from './combat.js';
+import { bears } from './bears.js';
 
 export const warriors = [];
 
@@ -9,8 +9,14 @@ export const warriors = [];
  * @param {number} y - The y-coordinate.
  */
 export function addWarrior(x, y) {
-    const warrior = { x, y, type: 'warrior', isMoving: false };
-    initializeHealth(warrior, 'warrior');
+    const warrior = { 
+        x, 
+        y, 
+        type: 'warrior',
+        isMoving: false,
+        health: 100,
+        damage: 20
+    };
     warriors.push(warrior);
 }
 
@@ -20,9 +26,16 @@ export function addWarrior(x, y) {
  */
 export function drawWarriors(ctx) {
     warriors.forEach(warrior => {
-        if (warrior.health <= 0) return; // Don't draw dead warriors
+        if (warrior.health <= 0) return;
         ctx.drawImage(textures.warrior, warrior.x * 50, warrior.y * 50, 50, 50);
-        drawHealthBar(ctx, warrior);
+        
+        // Draw health bar
+        const healthBarWidth = 40;
+        const healthPercent = warrior.health / 100;
+        ctx.fillStyle = '#ff0000';
+        ctx.fillRect(warrior.x * 50 + 5, warrior.y * 50 - 5, healthBarWidth, 3);
+        ctx.fillStyle = '#00ff00';
+        ctx.fillRect(warrior.x * 50 + 5, warrior.y * 50 - 5, healthBarWidth * healthPercent, 3);
     });
 }
 
@@ -59,8 +72,25 @@ export function moveWarriorToTile(warrior, targetX, targetY, ctx, drawMapWithEnt
         warrior.y = path[step].y;
         step++;
 
+        // Check for bears to attack after moving
+        const nearbyBears = bears.filter(bear => 
+            bear.health > 0 && 
+            Math.abs(bear.x - warrior.x) <= 1 && 
+            Math.abs(bear.y - warrior.y) <= 1
+        );
+        
+        if (nearbyBears.length > 0) {
+            const target = nearbyBears[0];
+            target.health -= warrior.damage;
+            console.log(`Warrior attacked bear for ${warrior.damage} damage. Bear health: ${target.health}`);
+            if (target.health <= 0) {
+                const index = bears.indexOf(target);
+                if (index > -1) bears.splice(index, 1);
+            }
+        }
+
         drawMapWithEntities();
-    }, 200); // Move every 200ms
+    }, 200);
 }
 
 /**

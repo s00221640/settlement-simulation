@@ -6,7 +6,6 @@ import { addWarrior, drawWarriors, warriors, moveWarriorToTile } from "./scripts
 import { addBear, drawBears, bears, moveBears, removeBear } from "./scripts/bears.js";
 import { loadTextures } from "./scripts/textures.js";
 import { isTileOccupied } from './scripts/utils.js';
-import { attack } from './scripts/combat.js';
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -141,7 +140,9 @@ setInterval(() => {
         
         if (nearbyBears.length > 0) {
             const target = nearbyBears[0];
-            if (attack(warrior, target)) {
+            target.health -= warrior.damage;
+            console.log(`Warrior attacked bear for ${warrior.damage} damage. Bear health: ${target.health}`);
+            if (target.health <= 0) {
                 removeBear(target);
             }
         }

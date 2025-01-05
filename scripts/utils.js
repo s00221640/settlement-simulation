@@ -1,7 +1,16 @@
 // utils.js
-export function isTileOccupied(x, y) {
-    const entities = window.gameState?.entities || [];
-    return entities.some(entity => entity.x === x && entity.y === y);
+export function isTileOccupied(x, y, workers, warriors, bears) {
+    // Simple occupation check
+    return workers.some(worker => worker.x === x && worker.y === y) ||
+           warriors.some(warrior => warrior.x === x && warrior.y === y) ||
+           bears.some(bear => bear.x === x && bear.y === y);
+}
+
+// Helper for pathfinding
+export function isPassableTile(map, x, y, workers, warriors, bears) {
+    if (x < 0 || y < 0 || x >= map[0].length || y >= map.length) return false;
+    if (map[y][x].type !== "grass") return false;
+    if (isTileOccupied(x, y, workers, warriors, bears)) return false;
 }
 
 export function addEntity(entity) {

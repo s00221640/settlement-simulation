@@ -1,26 +1,21 @@
-// scripts/bears.js
+// bears.js
 import { isTileOccupied } from './utils.js';
 import { workers } from './workers.js';
 import { warriors } from './warriors.js';
 import { map } from './map.js';
 import { textures } from './textures.js';
-import { initializeHealth, drawHealthBar, attack } from './combat.js';
 
 export const bears = [];
 
 export function addBear(x, y) {
-    const bear = { x, y, type: 'bear' };
-    initializeHealth(bear, 'bear');
+    const bear = { 
+        x, 
+        y, 
+        health: 150,
+        damage: 30,
+        type: 'bear'
+    };
     bears.push(bear);
-}
-
-export function drawBears(ctx) {
-    if (!textures.bear) return;
-    bears.forEach(bear => {
-        if (bear.health <= 0) return;
-        ctx.drawImage(textures.bear, bear.x * 50, bear.y * 50, 50, 50);
-        drawHealthBar(ctx, bear);
-    });
 }
 
 export function removeBear(bear) {
@@ -28,6 +23,25 @@ export function removeBear(bear) {
     if (index > -1) {
         bears.splice(index, 1);
     }
+}
+
+export function drawBears(ctx) {
+    if (!textures.bear) return;
+    bears.forEach(bear => {
+        if (bear.health <= 0) {
+            removeBear(bear);
+            return;
+        }
+        ctx.drawImage(textures.bear, bear.x * 50, bear.y * 50, 50, 50);
+        
+        // Draw health bar
+        const healthBarWidth = 40;
+        const healthPercent = bear.health / 150;
+        ctx.fillStyle = '#ff0000';
+        ctx.fillRect(bear.x * 50 + 5, bear.y * 50 - 5, healthBarWidth, 3);
+        ctx.fillStyle = '#00ff00';
+        ctx.fillRect(bear.x * 50 + 5, bear.y * 50 - 5, healthBarWidth * healthPercent, 3);
+    });
 }
 
 export function moveBears(bear, ctx, drawMapWithEntities) {
@@ -43,16 +57,8 @@ export function moveBears(bear, ctx, drawMapWithEntities) {
     if (targets.length > 0) {
         // Attack nearest target
         const target = targets[0];
-        if (attack(bear, target)) {
-            // Target died
-            if (target.type === 'worker') {
-                const index = workers.indexOf(target);
-                if (index > -1) workers.splice(index, 1);
-            } else {
-                const index = warriors.indexOf(target);
-                if (index > -1) warriors.splice(index, 1);
-            }
-        }
+        target.health -= bear.damage;
+        console.log(`Bear attacked ${target.type} for ${bear.damage} damage. Target health: ${target.health}`);
         return; // Don't move after attacking
     }
 
