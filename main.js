@@ -1,191 +1,162 @@
 // main.js
-import { generateMap, preprocessTreeTypes, drawMap, map } from "./scripts/map.js";
-import { collectWood, collectStone } from "./scripts/resources.js";
-import { addWorker, drawWorkers, workers, moveWorkerToTile } from "./scripts/workers.js";
-import { addWarrior, drawWarriors, warriors, moveWarriorToTile } from "./scripts/warriors.js";
-import { addBear, drawBears, bears, moveBears, removeBear } from "./scripts/bears.js";
-import { loadTextures } from "./scripts/textures.js";
-import { isTileOccupied } from './scripts/utils.js';
+import { World } from './scripts/ecs/core.js';
+import { SpatialGrid } from './scripts/ecs/spatial.js';
+import { MovementSystem } from './scripts/ecs/systems/movement.js';
+import { CombatSystem } from './scripts/ecs/systems/combat.js';
+import { MapSystem } from './scripts/ecs/systems/map.js';
+import { createWorker, createWarrior, createBear, createTree, createStone } from './scripts/ecs/components.js';
+import * as textures from './scripts/textures.js';
+import { JobSystem } from './scripts/ecs/systems/job.js';
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
+const TILE_SIZE = 50;
 
-const rows = canvas.height / 50;
-const cols = canvas.width / 50;
+const world = new World();
+const spatialGrid = new SpatialGrid(4);
+const mapSystem = new MapSystem(canvas.width / TILE_SIZE, canvas.height / TILE_SIZE, TILE_SIZE);
+const movementSystem = new MovementSystem(spatialGrid);
+const combatSystem = new CombatSystem(spatialGrid);
+const jobSystem = new JobSystem(movementSystem, mapSystem);
 
-window.gameMap = map;
+// Add systems
+world.addSystem(movementSystem);
+world.addSystem(combatSystem);
+world.addSystem(jobSystem);
 
-// Function to draw all entities on the map
-function drawMapWithEntities() {
-    drawMap(ctx);
-    drawWorkers(ctx);
-    drawWarriors(ctx);
-    drawBears(ctx);
-}
+let gameTexturesLoaded = false;
 
-// Find a random valid spawn location on grass
-function findValidSpawnLocation() {
-    for (let attempt = 0; attempt < 100; attempt++) {
-        const x = Math.floor(Math.random() * cols);
-        const y = Math.floor(Math.random() * rows);
-        if (map[y][x].type === "grass" && !isTileOccupied(x, y, workers, warriors, bears)) {
-            return { x, y };
-        }
-    }
-    return null;
-}
-
-// Start the game
 async function startGame() {
     try {
-        await loadTextures();
-        generateMap(rows, cols);
-        preprocessTreeTypes();
+        // Load textures first
+        await textures.loadTextures();
+        gameTexturesLoaded = true;
 
-        // Spawn initial worker
-        const workerSpawn = findValidSpawnLocation();
-        if (workerSpawn) {
-            addWorker(workerSpawn.x, workerSpawn.y);
-        }
+        // Generate terrain
+        mapSystem.generateMap();
 
-        // Spawn initial bears
+        // Spawn initial entities
+        spawnEntityAtRandomLocation(createWorker);
         for (let i = 0; i < 3; i++) {
-            const bearSpawn = findValidSpawnLocation();
-            if (bearSpawn) {
-                addBear(bearSpawn.x, bearSpawn.y);
-            }
+            spawnEntityAtRandomLocation(createBear);
         }
 
-        drawMapWithEntities();
+        // Start game loop
+        let lastTime = 0;
+        function gameLoop(timestamp) {
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+
+            world.update(dt);
+            drawGame();
+            requestAnimationFrame(gameLoop);
+        }
+        requestAnimationFrame(gameLoop);
+
     } catch (error) {
         console.error("Failed to start game:", error);
     }
 }
 
-startGame();
+function drawGame() {
+    if (!gameTexturesLoaded) return;
 
-// Handle worker recruitment
-document.getElementById("recruitWorker").addEventListener("click", () => {
-    const spawnPoint = findValidSpawnLocation();
-    if (spawnPoint) {
-        addWorker(spawnPoint.x, spawnPoint.y);
-        drawMapWithEntities();
-    }
-});
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-// Handle warrior recruitment
-document.getElementById("recruitWarrior").addEventListener("click", () => {
-    const spawnPoint = findValidSpawnLocation();
-    if (spawnPoint) {
-        addWarrior(spawnPoint.x, spawnPoint.y);
-        drawMapWithEntities();
-    }
-});
+    // Draw map
+    mapSystem.draw(ctx, textures.textures);
 
-// Handle resource gathering
-document.getElementById("gatherWood").addEventListener("click", () => {
-    const selectedWorker = workers[0];
-    if (selectedWorker && !selectedWorker.isMoving) {
-        const nearestResource = findNearestResource(selectedWorker.x, selectedWorker.y, "forest");
-        if (nearestResource) {
-            const adjacentTile = findAdjacentGrassTile(nearestResource.x, nearestResource.y);
-            if (adjacentTile) {
-                moveWorkerToTile(selectedWorker, adjacentTile.x, adjacentTile.y, ctx, drawMapWithEntities, () => {
-                    collectWood(map, nearestResource.x, nearestResource.y, wood => {
-                        document.getElementById("woodCount").textContent = wood;
-                        drawMapWithEntities();
-                    });
-                });
+    // Draw each entity with Position and Sprite
+    const renderableEntities = world.query('Position', 'Sprite');
+    for (const entityId of renderableEntities) {
+        const pos = world.getComponent(entityId, 'Position');
+        const sprite = world.getComponent(entityId, 'Sprite');
+        const health = world.getComponent(entityId, 'Health');
+
+        const texture = textures.textures[sprite.texture];
+        if (texture) {
+            ctx.drawImage(texture, pos.x * TILE_SIZE, pos.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            
+            // Draw health bar if entity has health
+            if (health) {
+                const healthPercent = health.current / health.max;
+                const barWidth = 40;
+                const barHeight = 4;
+                const barX = pos.x * TILE_SIZE + (TILE_SIZE - barWidth) / 2;
+                const barY = pos.y * TILE_SIZE - 8;
+
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(barX, barY, barWidth * healthPercent, barHeight);
             }
         }
+    }
+}
+
+function createEntity(components) {
+    const entityId = world.createEntity();
+    for (const [componentName, data] of Object.entries(components)) {
+        world.addComponent(entityId, componentName, data);
+    }
+    
+    // Add to spatial grid if entity has position
+    if (components.Position) {
+        spatialGrid.addEntity(entityId, components.Position.x, components.Position.y);
+    }
+    
+    return entityId;
+}
+
+function spawnEntityAtRandomLocation(entityCreator) {
+    for (let attempt = 0; attempt < 100; attempt++) {
+        const x = Math.floor(Math.random() * (canvas.width / TILE_SIZE));
+        const y = Math.floor(Math.random() * (canvas.height / TILE_SIZE));
+        
+        if (mapSystem.isPassable(x, y) && !spatialGrid.isTileOccupied(x, y, world)) {
+            return createEntity(entityCreator(x, y));
+        }
+    }
+    return null;
+}
+
+// Event handler for clicking on the canvas
+canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / TILE_SIZE);
+    const y = Math.floor((e.clientY - rect.top) / TILE_SIZE);
+
+    // Get clicked tile info from map
+    const tile = mapSystem.getTile(x, y);
+    if (tile) {
+        console.log(`Clicked tile at (${x}, ${y}): ${tile.type}`);
+    }
+});
+
+// UI Event Handlers
+document.getElementById("recruitWorker").addEventListener("click", () => {
+    spawnEntityAtRandomLocation(createWorker);
+});
+
+document.getElementById("recruitWarrior").addEventListener("click", () => {
+    spawnEntityAtRandomLocation(createWarrior);
+});
+
+document.getElementById("gatherWood").addEventListener("click", () => {
+    const workers = world.query('Position', 'Job');
+    if (workers.length > 0) {
+        const workerId = workers[0]; // Use first available worker
+        jobSystem.assignGatheringJob(world, workerId, 'forest');
     }
 });
 
 document.getElementById("gatherStone").addEventListener("click", () => {
-    const selectedWorker = workers[0];
-    if (selectedWorker && !selectedWorker.isMoving) {
-        const nearestResource = findNearestResource(selectedWorker.x, selectedWorker.y, "stone");
-        if (nearestResource) {
-            const adjacentTile = findAdjacentGrassTile(nearestResource.x, nearestResource.y);
-            if (adjacentTile) {
-                moveWorkerToTile(selectedWorker, adjacentTile.x, adjacentTile.y, ctx, drawMapWithEntities, () => {
-                    collectStone(map, nearestResource.x, nearestResource.y, stone => {
-                        document.getElementById("stoneCount").textContent = stone;
-                        drawMapWithEntities();
-                    });
-                });
-            }
-        }
+    const workers = world.query('Position', 'Job');
+    if (workers.length > 0) {
+        const workerId = workers[0]; // Use first available worker
+        jobSystem.assignGatheringJob(world, workerId, 'stone');
     }
 });
 
-// Bears movement and combat interval
-setInterval(() => {
-    bears.forEach(bear => {
-        moveBears(bear, ctx, drawMapWithEntities);
-    });
-}, 1000);
-
-// Warriors combat interval
-setInterval(() => {
-    warriors.forEach(warrior => {
-        if (warrior.health <= 0) return;
-        
-        // Look for bears in attack range
-        const nearbyBears = bears.filter(bear => 
-            bear.health > 0 && 
-            Math.abs(bear.x - warrior.x) <= 1 && 
-            Math.abs(bear.y - warrior.y) <= 1
-        );
-        
-        if (nearbyBears.length > 0) {
-            const target = nearbyBears[0];
-            target.health -= warrior.damage;
-            console.log(`Warrior attacked bear for ${warrior.damage} damage. Bear health: ${target.health}`);
-            if (target.health <= 0) {
-                removeBear(target);
-            }
-        }
-    });
-    
-    drawMapWithEntities();
-}, 1000);
-
-// Helper function to find nearest resource
-function findNearestResource(x, y, type) {
-    let nearest = null;
-    let minDistance = Infinity;
-
-    map.forEach((row, rowIndex) => {
-        row.forEach((tile, colIndex) => {
-            if (tile.type === type) {
-                const distance = Math.abs(x - colIndex) + Math.abs(y - rowIndex);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    nearest = { ...tile, x: colIndex, y: rowIndex };
-                }
-            }
-        });
-    });
-
-    return nearest;
-}
-
-// Helper function to find adjacent grass tile
-function findAdjacentGrassTile(x, y) {
-    const adjacentTiles = [
-        { x: x + 1, y },
-        { x: x - 1, y },
-        { x, y: y + 1 },
-        { x, y: y - 1 }
-    ];
-
-    for (const tile of adjacentTiles) {
-        if (tile.x >= 0 && tile.x < cols && tile.y >= 0 && tile.y < rows &&
-            map[tile.y][tile.x].type === "grass") {
-            return tile;
-        }
-    }
-
-    return null;
-}
+startGame();

@@ -1,3 +1,4 @@
+// scripts/textures.js
 export const textures = {
     grass: null,
     forest: null,
@@ -6,7 +7,7 @@ export const textures = {
     treeBottom: null,
     worker: null,
     warrior: null,
-    bear: null // Add Bear texture
+    bear: null
 };
 
 function createImage(src, name) {
@@ -26,7 +27,7 @@ function createImage(src, name) {
 
 export async function loadTextures() {
     try {
-        const texturePromises = [
+        await Promise.all([
             createImage("textures/Grass.png", "grass").then(img => textures.grass = img),
             createImage("textures/Forest.png", "forest").then(img => textures.forest = img),
             createImage("textures/Stone.png", "stone").then(img => textures.stone = img),
@@ -34,10 +35,8 @@ export async function loadTextures() {
             createImage("textures/Tree_bottom.png", "treeBottom").then(img => textures.treeBottom = img),
             createImage("textures/Worker.png", "worker").then(img => textures.worker = img),
             createImage("textures/Warrior.png", "warrior").then(img => textures.warrior = img),
-            createImage("textures/Bear.png", "bear").then(img => textures.bear = img) // Load Bear texture
-        ];
-
-        await Promise.all(texturePromises);
+            createImage("textures/Bear.png", "bear").then(img => textures.bear = img)
+        ]);
         console.log("All textures loaded successfully");
     } catch (error) {
         console.error("Failed to load one or more textures:", error);
