@@ -6,7 +6,13 @@ export const textures = {
     treeBottom: null,
     worker: null,
     warrior: null,
-    bear: null // Add Bear texture
+    bear: null,
+    stream_horizontal: null,
+    stream_vertical: null,
+    streamCornerTopLeft: null,
+    streamCornerTopRight: null,
+    streamCornerBottomLeft: null,
+    streamCornerBottomRight: null,
 };
 
 function createImage(src, name) {
@@ -34,7 +40,13 @@ export async function loadTextures() {
             createImage("textures/Tree_bottom.png", "treeBottom").then(img => textures.treeBottom = img),
             createImage("textures/Worker.png", "worker").then(img => textures.worker = img),
             createImage("textures/Warrior.png", "warrior").then(img => textures.warrior = img),
-            createImage("textures/Bear.png", "bear").then(img => textures.bear = img) // Load Bear texture
+            createImage("textures/Bear.png", "bear").then(img => textures.bear = img),
+            createImage("textures/Stream_horizontal.png", "stream_horizontal").then(img => textures.stream_horizontal = img),
+            createImage("textures/Stream_vertical.png", "stream_vertical").then(img => textures.stream_vertical = img),
+            createImage("textures/Stream_corner_top_left.png", "streamCornerTopLeft").then(img => textures.streamCornerTopLeft = img),
+            createImage("textures/Stream_corner_top_right.png", "streamCornerTopRight").then(img => textures.streamCornerTopRight = img),
+            createImage("textures/Stream_corner_bottom_left.png", "streamCornerBottomLeft").then(img => textures.streamCornerBottomLeft = img),
+            createImage("textures/Stream_corner_bottom_right.png", "streamCornerBottomRight").then(img => textures.streamCornerBottomRight = img),
         ];
 
         await Promise.all(texturePromises);
