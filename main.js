@@ -1,6 +1,6 @@
 // main.js
 import { generateMap, preprocessTreeTypes, drawMap, map } from "./scripts/map.js";
-import { collectWood, collectStone } from "./scripts/resources.js";
+import { collectWood, collectStone, woodCount, stoneCount } from "./scripts/resources.js";
 import { addWorker, drawWorkers, workers, moveWorkerToTile } from "./scripts/workers.js";
 import { addWarrior, drawWarriors, warriors, moveWarriorToTile } from "./scripts/warriors.js";
 import { addBear, drawBears, bears, moveBears, removeBear } from "./scripts/bears.js";
@@ -14,6 +14,9 @@ const rows = canvas.height / 50;
 const cols = canvas.width / 50;
 
 window.gameMap = map;
+
+let buildingMode = false;
+let buildingStart = null;
 
 // Function to draw all entities on the map
 function drawMapWithEntities() {
@@ -130,14 +133,14 @@ setInterval(() => {
 setInterval(() => {
     warriors.forEach(warrior => {
         if (warrior.health <= 0) return;
-        
+
         // Look for bears in attack range
-        const nearbyBears = bears.filter(bear => 
-            bear.health > 0 && 
-            Math.abs(bear.x - warrior.x) <= 1 && 
+        const nearbyBears = bears.filter(bear =>
+            bear.health > 0 &&
+            Math.abs(bear.x - warrior.x) <= 1 &&
             Math.abs(bear.y - warrior.y) <= 1
         );
-        
+
         if (nearbyBears.length > 0) {
             const target = nearbyBears[0];
             target.health -= warrior.damage;
@@ -147,7 +150,7 @@ setInterval(() => {
             }
         }
     });
-    
+
     drawMapWithEntities();
 }, 1000);
 
@@ -188,4 +191,73 @@ function findAdjacentGrassTile(x, y) {
     }
 
     return null;
+}
+
+// Building mode logic
+document.getElementById("startBuilding").addEventListener("click", () => {
+    buildingMode = !buildingMode;
+    console.log(`Building mode: ${buildingMode ? "ON" : "OFF"}`);
+});
+
+canvas.addEventListener("mousedown", (event) => {
+    if (!buildingMode) return;
+
+    const startX = Math.floor(event.offsetX / 50);
+    const startY = Math.floor(event.offsetY / 50);
+    buildingStart = { x: startX, y: startY };
+});
+
+canvas.addEventListener("mouseup", (event) => {
+    if (!buildingMode || !buildingStart) return;
+
+    const endX = Math.floor(event.offsetX / 50);
+    const endY = Math.floor(event.offsetY / 50);
+
+    const startX = Math.min(buildingStart.x, endX);
+    const startY = Math.min(buildingStart.y, endY);
+    const width = Math.abs(buildingStart.x - endX) + 1;
+    const height = Math.abs(buildingStart.y - endY) + 1;
+
+    constructBuilding(startX, startY, width, height);
+    buildingStart = null;
+    drawMapWithEntities();
+});
+
+/**
+ * Constructs a building on the map.
+ * @param {number} startX - The starting X coordinate.
+ * @param {number} startY - The starting Y coordinate.
+ * @param {number} width - The width of the building.
+ * @param {number} height - The height of the building.
+ */
+function constructBuilding(startX, startY, width, height) {
+    let cost = { wood: 0, stone: 0 };
+    const woodCostPerTile = 2;
+    const stoneCostPerTile = 1;
+
+    for (let y = startY; y < startY + height; y++) {
+        for (let x = startX; x < startX + width; x++) {
+            if (y >= 0 && y < rows && x >= 0 && x < cols) {
+                if (map[y][x].type === "grass") {
+                    cost.wood += woodCostPerTile;
+                    cost.stone += stoneCostPerTile;
+
+                    if (cost.wood > woodCount || cost.stone > stoneCount) {
+                        console.log("Not enough resources to construct the building.");
+                        return;
+                    }
+
+                    map[y][x].type = "building";
+                }
+            }
+        }
+    }
+
+    woodCount -= cost.wood;
+    stoneCount -= cost.stone;
+
+    document.getElementById("woodCount").textContent = woodCount;
+    document.getElementById("stoneCount").textContent = stoneCount;
+
+    console.log(`Constructed building from (${startX}, ${startY}) with dimensions ${width}x${height}`);
 }

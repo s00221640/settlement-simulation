@@ -12,7 +12,7 @@ export function generateMap(rows, cols) {
     for (let y = 0; y < rows; y++) {
         const row = [];
         for (let x = 0; x < cols; x++) {
-            row.push({ type: "grass", baseType: "grass", x, y, treeType: null });
+            row.push({ type: "grass", baseType: "grass", x, y, designatedStructure: null });
         }
         map.push(row);
     }
@@ -139,14 +139,67 @@ export function drawMap(ctx) {
             // Draw resources or special features
             if (tile.type === "forest") {
                 const treeTexture = tile.treeType === "treeTop" ? textures.treeTop :
-                                    tile.treeType === "treeBottom" ? textures.treeBottom :
-                                    textures.forest;
+                    tile.treeType === "treeBottom" ? textures.treeBottom :
+                        textures.forest;
                 ctx.drawImage(treeTexture, x * tileSize, y * tileSize, tileSize, tileSize);
             } else if (tile.type === "stone") {
                 ctx.drawImage(textures.stone, x * tileSize, y * tileSize, tileSize, tileSize);
             } else if (tile.type.startsWith("stream")) {
                 ctx.drawImage(textures[tile.type], x * tileSize, y * tileSize, tileSize, tileSize);
             }
+
+            // Draw buildings
+            if (tile.designatedStructure) {
+                ctx.drawImage(textures[tile.designatedStructure], x * tileSize, y * tileSize, tileSize, tileSize);
+            }
         });
     });
 }
+
+/**
+ * Constructs a building within the specified rectangle.
+ * @param {number} startX - The starting x-coordinate.
+ * @param {number} startY - The starting y-coordinate.
+ * @param {number} width - The width of the building.
+ * @param {number} height - The height of the building.
+ * @param {string} structureType - The type of structure to place (wall, floor, door).
+ */
+export function constructBuilding(startX, startY, width, height, type) {
+    let cost = { wood: 0, stone: 0 }; // Mutable object
+    const woodCostPerTile = type === "floor" ? 1 : 2; // Floors cost 1 wood, walls/doors cost 2 wood
+    const stoneCostPerTile = type === "wall" ? 1 : 0; // Walls cost 1 stone
+
+    for (let y = startY; y < startY + height; y++) {
+        for (let x = startX; x < startX + width; x++) {
+            // Ensure tiles are within bounds
+            if (y >= 0 && y < rows && x >= 0 && x < cols) {
+                if (map[y][x].type === "grass") {
+                    cost.wood += woodCostPerTile;
+                    cost.stone += stoneCostPerTile;
+
+                    // Ensure resources are available
+                    if (cost.wood > woodCount || cost.stone > stoneCount) {
+                        console.log("Not enough resources to construct the building.");
+                        return;
+                    }
+
+                    // Set the tile to the building type
+                    map[y][x].type = type;
+                }
+            }
+        }
+    }
+
+    // Deduct resources after building
+    woodCount -= cost.wood;
+    stoneCount -= cost.stone;
+
+    // Update the UI
+    document.getElementById("woodCount").textContent = woodCount;
+    document.getElementById("stoneCount").textContent = stoneCount;
+
+    console.log(`Constructed ${type} from (${startX}, ${startY}) with dimensions ${width}x${height}`);
+}
+
+
+

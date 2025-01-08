@@ -47,6 +47,9 @@ export async function loadTextures() {
             createImage("textures/Stream_corner_top_right.png", "streamCornerTopRight").then(img => textures.streamCornerTopRight = img),
             createImage("textures/Stream_corner_bottom_left.png", "streamCornerBottomLeft").then(img => textures.streamCornerBottomLeft = img),
             createImage("textures/Stream_corner_bottom_right.png", "streamCornerBottomRight").then(img => textures.streamCornerBottomRight = img),
+            createImage("textures/Wall_wood.png", "wallWood").then(img => textures.wallWood = img),
+            createImage("textures/Floor_wood.png", "floorWood").then(img => textures.floorWood = img),
+            createImage("textures/Door_wood.png", "doorWood").then(img => textures.doorWood = img),
         ];
 
         await Promise.all(texturePromises);
