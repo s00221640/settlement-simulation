@@ -1,7 +1,7 @@
 // main.js
-import { generateMap, preprocessTreeTypes, drawMap, map } from "./scripts/map.js";
-import { collectWood, collectStone, woodCount, stoneCount } from "./scripts/resources.js";
-import { addWorker, drawWorkers, workers, moveWorkerToTile } from "./scripts/workers.js";
+import { generateMap, preprocessTreeTypes, drawMap, map, designateBuilding } from "./scripts/map.js";
+import { collectWood, collectStone, woodCount, stoneCount, deductResources } from "./scripts/resources.js";
+import { addWorker, drawWorkers, workers, moveWorkerToTile, assignWorkerToConstruction } from "./scripts/workers.js";
 import { addWarrior, drawWarriors, warriors, moveWarriorToTile } from "./scripts/warriors.js";
 import { addBear, drawBears, bears, moveBears, removeBear } from "./scripts/bears.js";
 import { loadTextures } from "./scripts/textures.js";
@@ -17,6 +17,19 @@ window.gameMap = map;
 
 let buildingMode = false;
 let buildingStart = null;
+let selectedBuildingType = 'house';
+
+// Create building type dropdown
+const buildingTypeSelect = document.createElement('select');
+buildingTypeSelect.id = 'buildingType';
+const buildingTypes = ['house', 'storage', 'barracks', 'workshop'];
+buildingTypes.forEach(type => {
+    const option = document.createElement('option');
+    option.value = type;
+    option.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+    buildingTypeSelect.appendChild(option);
+});
+document.getElementById('ui').insertBefore(buildingTypeSelect, document.getElementById('startBuilding'));
 
 // Function to draw all entities on the map
 function drawMapWithEntities() {
@@ -196,7 +209,8 @@ function findAdjacentGrassTile(x, y) {
 // Building mode logic
 document.getElementById("startBuilding").addEventListener("click", () => {
     buildingMode = !buildingMode;
-    console.log(`Building mode: ${buildingMode ? "ON" : "OFF"}`);
+    selectedBuildingType = document.getElementById('buildingType').value;
+    console.log(`Building mode: ${buildingMode ? "ON" : "OFF"}, Type: ${selectedBuildingType}`);
 });
 
 canvas.addEventListener("mousedown", (event) => {
@@ -205,6 +219,27 @@ canvas.addEventListener("mousedown", (event) => {
     const startX = Math.floor(event.offsetX / 50);
     const startY = Math.floor(event.offsetY / 50);
     buildingStart = { x: startX, y: startY };
+});
+
+canvas.addEventListener("mousemove", (event) => {
+    if (!buildingMode || !buildingStart) return;
+    
+    const currentX = Math.floor(event.offsetX / 50);
+    const currentY = Math.floor(event.offsetY / 50);
+    
+    // Redraw the map with preview
+    drawMapWithEntities();
+    
+    // Draw preview rectangle
+    const startX = Math.min(buildingStart.x, currentX);
+    const startY = Math.min(buildingStart.y, currentY);
+    const width = Math.abs(buildingStart.x - currentX) + 1;
+    const height = Math.abs(buildingStart.y - currentY) + 1;
+    
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = 'blue';
+    ctx.fillRect(startX * 50, startY * 50, width * 50, height * 50);
+    ctx.globalAlpha = 1.0;
 });
 
 canvas.addEventListener("mouseup", (event) => {
@@ -218,46 +253,16 @@ canvas.addEventListener("mouseup", (event) => {
     const width = Math.abs(buildingStart.x - endX) + 1;
     const height = Math.abs(buildingStart.y - endY) + 1;
 
-    constructBuilding(startX, startY, width, height);
+    if (designateBuilding(startX, startY, width, height, selectedBuildingType)) {
+        console.log(`Designated ${selectedBuildingType} from (${startX}, ${startY}) with dimensions ${width}x${height}`);
+        // Assign available workers to start construction
+        workers.forEach(worker => {
+            if (!worker.task) {
+                assignWorkerToConstruction(worker);
+            }
+        });
+    }
+
     buildingStart = null;
     drawMapWithEntities();
 });
-
-/**
- * Constructs a building on the map.
- * @param {number} startX - The starting X coordinate.
- * @param {number} startY - The starting Y coordinate.
- * @param {number} width - The width of the building.
- * @param {number} height - The height of the building.
- */
-function constructBuilding(startX, startY, width, height) {
-    let cost = { wood: 0, stone: 0 };
-    const woodCostPerTile = 2;
-    const stoneCostPerTile = 1;
-
-    for (let y = startY; y < startY + height; y++) {
-        for (let x = startX; x < startX + width; x++) {
-            if (y >= 0 && y < rows && x >= 0 && x < cols) {
-                if (map[y][x].type === "grass") {
-                    cost.wood += woodCostPerTile;
-                    cost.stone += stoneCostPerTile;
-
-                    if (cost.wood > woodCount || cost.stone > stoneCount) {
-                        console.log("Not enough resources to construct the building.");
-                        return;
-                    }
-
-                    map[y][x].type = "building";
-                }
-            }
-        }
-    }
-
-    woodCount -= cost.wood;
-    stoneCount -= cost.stone;
-
-    document.getElementById("woodCount").textContent = woodCount;
-    document.getElementById("stoneCount").textContent = stoneCount;
-
-    console.log(`Constructed building from (${startX}, ${startY}) with dimensions ${width}x${height}`);
-}

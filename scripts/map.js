@@ -1,4 +1,5 @@
 import { textures } from './textures.js';
+import { woodCount, stoneCount } from './resources.js';
 
 export const map = [];
 
@@ -12,7 +13,14 @@ export function generateMap(rows, cols) {
     for (let y = 0; y < rows; y++) {
         const row = [];
         for (let x = 0; x < cols; x++) {
-            row.push({ type: "grass", baseType: "grass", x, y, designatedStructure: null });
+            row.push({ 
+                type: "grass", 
+                baseType: "grass", 
+                x, 
+                y, 
+                designatedStructure: null,
+                constructionProgress: 0
+            });
         }
         map.push(row);
     }
@@ -148,58 +156,124 @@ export function drawMap(ctx) {
                 ctx.drawImage(textures[tile.type], x * tileSize, y * tileSize, tileSize, tileSize);
             }
 
-            // Draw buildings
-            if (tile.designatedStructure) {
-                ctx.drawImage(textures[tile.designatedStructure], x * tileSize, y * tileSize, tileSize, tileSize);
+            // Draw designated structures (blueprints)
+            if (tile.designatedStructure && tile.constructionProgress < 100) {
+                ctx.globalAlpha = 0.5;
+                
+                // Draw blueprint background (red if paused, blue if constructible)
+                if (tile.constructionPaused) {
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                } else {
+                    ctx.fillStyle = 'rgba(0, 0, 255, 0.3)';
+                }
+                ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+
+                // Draw blueprint grid lines
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                // Vertical lines
+                for (let i = 1; i < 4; i++) {
+                    const xPos = x * tileSize + (tileSize * i / 4);
+                    ctx.moveTo(xPos, y * tileSize);
+                    ctx.lineTo(xPos, (y + 1) * tileSize);
+                }
+                // Horizontal lines
+                for (let i = 1; i < 4; i++) {
+                    const yPos = y * tileSize + (tileSize * i / 4);
+                    ctx.moveTo(x * tileSize, yPos);
+                    ctx.lineTo((x + 1) * tileSize, yPos);
+                }
+                ctx.stroke();
+                
+                // Draw construction progress
+                if (tile.constructionProgress > 0) {
+                    const progressHeight = (tile.constructionProgress / 100) * tileSize;
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.fillRect(x * tileSize, y * tileSize + (tileSize - progressHeight), tileSize, progressHeight);
+                }
+                
+                ctx.globalAlpha = 1.0;
+            }
+
+            // Draw completed buildings
+            if (tile.designatedStructure && tile.constructionProgress >= 100) {
+                const structureType = tile.designatedStructure;
+                const texture = textures[`${structureType}Wood`];
+                if (texture) {
+                    ctx.drawImage(texture, x * tileSize, y * tileSize, tileSize, tileSize);
+                }
             }
         });
     });
 }
 
 /**
- * Constructs a building within the specified rectangle.
+ * Designates an area for building construction.
  * @param {number} startX - The starting x-coordinate.
  * @param {number} startY - The starting y-coordinate.
- * @param {number} width - The width of the building.
- * @param {number} height - The height of the building.
- * @param {string} structureType - The type of structure to place (wall, floor, door).
+ * @param {number} width - The width of the building area.
+ * @param {number} height - The height of the building area.
+ * @param {string} buildingType - The type of building to construct.
+ * @returns {boolean} - True if designation was successful, false otherwise.
  */
-export function constructBuilding(startX, startY, width, height, type) {
-    let cost = { wood: 0, stone: 0 }; // Mutable object
-    const woodCostPerTile = type === "floor" ? 1 : 2; // Floors cost 1 wood, walls/doors cost 2 wood
-    const stoneCostPerTile = type === "wall" ? 1 : 0; // Walls cost 1 stone
-
+export function designateBuilding(startX, startY, width, height, buildingType) {
+    let validTiles = 0;
+    
+    // First pass: count valid tiles
     for (let y = startY; y < startY + height; y++) {
         for (let x = startX; x < startX + width; x++) {
-            // Ensure tiles are within bounds
-            if (y >= 0 && y < rows && x >= 0 && x < cols) {
-                if (map[y][x].type === "grass") {
-                    cost.wood += woodCostPerTile;
-                    cost.stone += stoneCostPerTile;
-
-                    // Ensure resources are available
-                    if (cost.wood > woodCount || cost.stone > stoneCount) {
-                        console.log("Not enough resources to construct the building.");
-                        return;
-                    }
-
-                    // Set the tile to the building type
-                    map[y][x].type = type;
+            if (y >= 0 && y < map.length && x >= 0 && x < map[0].length) {
+                if (map[y][x].type === "grass" && !map[y][x].designatedStructure) {
+                    validTiles++;
                 }
             }
         }
     }
 
-    // Deduct resources after building
-    woodCount -= cost.wood;
-    stoneCount -= cost.stone;
+    // Second pass: designate the building
+    for (let y = startY; y < startY + height; y++) {
+        for (let x = startX; x < startX + width; x++) {
+            if (y >= 0 && y < map.length && x >= 0 && x < map[0].length) {
+                if (map[y][x].type === "grass" && !map[y][x].designatedStructure) {
+                    map[y][x].designatedStructure = buildingType;
+                    map[y][x].constructionProgress = 0;
+                    map[y][x].constructionPaused = true; // Start paused until resources available
+                }
+            }
+        }
+    }
 
-    // Update the UI
-    document.getElementById("woodCount").textContent = woodCount;
-    document.getElementById("stoneCount").textContent = stoneCount;
-
-    console.log(`Constructed ${type} from (${startX}, ${startY}) with dimensions ${width}x${height}`);
+    return true;
 }
 
+/**
+ * Gets the building type at a specific tile.
+ * @param {number} x - The x-coordinate.
+ * @param {number} y - The y-coordinate.
+ * @returns {string|null} - The building type or null if no building exists.
+ */
+export function getBuildingAtTile(x, y) {
+    if (y >= 0 && y < map.length && x >= 0 && x < map[0].length) {
+        return map[y][x].designatedStructure;
+    }
+    return null;
+}
 
-
+/**
+ * Updates the construction progress of a building tile.
+ * @param {number} x - The x-coordinate.
+ * @param {number} y - The y-coordinate.
+ * @param {number} progressAmount - Amount of progress to add (0-100).
+ * @returns {boolean} - True if construction is complete after update.
+ */
+export function updateConstructionProgress(x, y, progressAmount) {
+    if (y >= 0 && y < map.length && x >= 0 && x < map[0].length) {
+        const tile = map[y][x];
+        if (tile.designatedStructure && tile.constructionProgress < 100) {
+            tile.constructionProgress = Math.min(100, tile.constructionProgress + progressAmount);
+            return tile.constructionProgress >= 100;
+        }
+    }
+    return false;
+}
