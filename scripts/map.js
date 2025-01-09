@@ -167,24 +167,37 @@ export function drawMap(ctx) {
                     ctx.fillStyle = 'rgba(0, 0, 255, 0.3)';
                 }
                 ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-
+            
                 // Draw blueprint grid lines
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
                 ctx.lineWidth = 1;
-                ctx.beginPath();
-                // Vertical lines
-                for (let i = 1; i < 4; i++) {
-                    const xPos = x * tileSize + (tileSize * i / 4);
-                    ctx.moveTo(xPos, y * tileSize);
-                    ctx.lineTo(xPos, (y + 1) * tileSize);
+                
+                // Only draw grid lines for interior tiles
+                const buildingInfo = tile.buildingInfo;
+                if (buildingInfo) {
+                    // Draw edge highlights for walls
+                    if (buildingInfo.isWall) {
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                    } else {
+                        // Interior grid pattern
+                        ctx.beginPath();
+                        // Vertical lines
+                        for (let i = 1; i < 4; i++) {
+                            const xPos = x * tileSize + (tileSize * i / 4);
+                            ctx.moveTo(xPos, y * tileSize);
+                            ctx.lineTo(xPos, (y + 1) * tileSize);
+                        }
+                        // Horizontal lines
+                        for (let i = 1; i < 4; i++) {
+                            const yPos = y * tileSize + (tileSize * i / 4);
+                            ctx.moveTo(x * tileSize, yPos);
+                            ctx.lineTo((x + 1) * tileSize, yPos);
+                        }
+                        ctx.stroke();
+                    }
                 }
-                // Horizontal lines
-                for (let i = 1; i < 4; i++) {
-                    const yPos = y * tileSize + (tileSize * i / 4);
-                    ctx.moveTo(x * tileSize, yPos);
-                    ctx.lineTo((x + 1) * tileSize, yPos);
-                }
-                ctx.stroke();
                 
                 // Draw construction progress
                 if (tile.constructionProgress > 0) {
@@ -198,8 +211,7 @@ export function drawMap(ctx) {
 
             // Draw completed buildings
             if (tile.designatedStructure && tile.constructionProgress >= 100) {
-                const structureType = tile.designatedStructure;
-                const texture = textures[`${structureType}Wood`];
+                const texture = textures[tile.structurePartType];  // Use the specific part texture
                 if (texture) {
                     ctx.drawImage(texture, x * tileSize, y * tileSize, tileSize, tileSize);
                 }
@@ -217,30 +229,58 @@ export function drawMap(ctx) {
  * @param {string} buildingType - The type of building to construct.
  * @returns {boolean} - True if designation was successful, false otherwise.
  */
+// In map.js, modify the designateBuilding function:
+
 export function designateBuilding(startX, startY, width, height, buildingType) {
     let validTiles = 0;
+    let allTilesValid = true;
     
-    // First pass: count valid tiles
+    // First pass: validate the entire area
     for (let y = startY; y < startY + height; y++) {
         for (let x = startX; x < startX + width; x++) {
             if (y >= 0 && y < map.length && x >= 0 && x < map[0].length) {
                 if (map[y][x].type === "grass" && !map[y][x].designatedStructure) {
                     validTiles++;
+                } else {
+                    allTilesValid = false;
                 }
+            } else {
+                allTilesValid = false;
             }
         }
     }
 
-    // Second pass: designate the building
+    // If not all tiles are valid, don't designate anything
+    if (!allTilesValid || validTiles !== width * height) {
+        console.log("Cannot place building here - area contains invalid tiles");
+        return false;
+    }
+
+    // All tiles are valid, proceed with designation
     for (let y = startY; y < startY + height; y++) {
         for (let x = startX; x < startX + width; x++) {
-            if (y >= 0 && y < map.length && x >= 0 && x < map[0].length) {
-                if (map[y][x].type === "grass" && !map[y][x].designatedStructure) {
-                    map[y][x].designatedStructure = buildingType;
-                    map[y][x].constructionProgress = 0;
-                    map[y][x].constructionPaused = true; // Start paused until resources available
-                }
-            }
+            const isEdge = x === startX || x === startX + width - 1 || 
+                          y === startY || y === startY + height - 1;
+            const isCenterFront = y === startY + height - 1 && 
+                                x === startX + Math.floor(width / 2);
+            
+            const structurePartType = isCenterFront ? "doorWood" : 
+                                    isEdge ? "wallWood" : "floorWood";
+
+            map[y][x].designatedStructure = buildingType;
+            map[y][x].structurePartType = structurePartType;  // Store what kind of part this is
+            map[y][x].constructionProgress = 0;
+            map[y][x].constructionPaused = true;
+            
+            map[y][x].buildingInfo = {
+                startX: startX,
+                startY: startY,
+                width: width,
+                height: height,
+                type: buildingType,
+                isWall: isEdge,
+                isDoor: isCenterFront
+            };
         }
     }
 

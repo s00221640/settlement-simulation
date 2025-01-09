@@ -213,12 +213,15 @@ document.getElementById("startBuilding").addEventListener("click", () => {
     console.log(`Building mode: ${buildingMode ? "ON" : "OFF"}, Type: ${selectedBuildingType}`);
 });
 
+let isDragging = false;
+
 canvas.addEventListener("mousedown", (event) => {
     if (!buildingMode) return;
 
     const startX = Math.floor(event.offsetX / 50);
     const startY = Math.floor(event.offsetY / 50);
     buildingStart = { x: startX, y: startY };
+    isDragging = false;  // Reset drag state on mousedown
 });
 
 canvas.addEventListener("mousemove", (event) => {
@@ -226,6 +229,11 @@ canvas.addEventListener("mousemove", (event) => {
     
     const currentX = Math.floor(event.offsetX / 50);
     const currentY = Math.floor(event.offsetY / 50);
+    
+    // Only set dragging true if mouse has moved to a different tile
+    if (currentX !== buildingStart.x || currentY !== buildingStart.y) {
+        isDragging = true;
+    }
     
     // Redraw the map with preview
     drawMapWithEntities();
@@ -248,13 +256,24 @@ canvas.addEventListener("mouseup", (event) => {
     const endX = Math.floor(event.offsetX / 50);
     const endY = Math.floor(event.offsetY / 50);
 
-    const startX = Math.min(buildingStart.x, endX);
-    const startY = Math.min(buildingStart.y, endY);
-    const width = Math.abs(buildingStart.x - endX) + 1;
-    const height = Math.abs(buildingStart.y - endY) + 1;
+    let startX, startY, width, height;
+
+    if (isDragging) {
+        // For drag operations, use the drag area
+        startX = Math.min(buildingStart.x, endX);
+        startY = Math.min(buildingStart.y, endY);
+        width = Math.abs(buildingStart.x - endX) + 1;
+        height = Math.abs(buildingStart.y - endY) + 1;
+    } else {
+        // For single clicks, create a 1x1 building at click location
+        startX = endX;
+        startY = endY;
+        width = 1;
+        height = 1;
+    }
 
     if (designateBuilding(startX, startY, width, height, selectedBuildingType)) {
-        console.log(`Designated ${selectedBuildingType} from (${startX}, ${startY}) with dimensions ${width}x${height}`);
+        console.log(`Designated ${selectedBuildingType} area from (${startX}, ${startY}) with dimensions ${width}x${height}`);
         // Assign available workers to start construction
         workers.forEach(worker => {
             if (!worker.task) {
@@ -264,5 +283,6 @@ canvas.addEventListener("mouseup", (event) => {
     }
 
     buildingStart = null;
+    isDragging = false;
     drawMapWithEntities();
 });
